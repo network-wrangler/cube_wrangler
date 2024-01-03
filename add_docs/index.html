@@ -16,7 +16,7 @@
       
       
       <link rel="icon" href="assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.2">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.3">
     
     
       
@@ -440,17 +440,17 @@
 
 
 <h1 id="cube-wrangler">Cube Wrangler<a class="headerlink" href="#cube-wrangler" title="Permanent link"> ¶</a></h1>
-<p>Welcome to Cube Wrangler. Cube Wrangler is a Python package that contains utilities for working with <a href="https://github.com/wsp-sag/network_wrangler">Network Wrangler</a>. It contains methods for carrying out the following common tasks:</p>
+<p>Welcome to Cube Wrangler. Cube Wrangler is a Python package that contains utilities for working with <a href="https://github.com/wsp-sag/network_wrangler">Network Wrangler</a>. <a href="https://www.bentley.com/software/cube/">Cube</a> is a commercial travel modeling software package. Cube Wrangler contains methods for carrying out the following common tasks:</p>
 <ul>
 <li>Creates a set of files than can be read in by a Cube script to create a Cube roadway network.</li>
 <li>Writes out a Network Wrangler transit network in Cube format.  </li>
-<li>Converts an Cube Log file, which is a record of roadway edits done in Cube, into a project card.</li>
-<li>Converts two Cube <code>LIN</code> files, which are Cube&rsquo;s way of representing transit, int a project card. Note that Cube&rsquo;s log files to not record transit edits. Rather, Cube writes out an updated <code>LIN</code> file. Cube Wrangler assesses the differences in the <code>LIN</code> files and creates a project card that represents the edits.</li>
+<li>Converts a Cube Log file, which is a record of roadway edits done in Cube, into a <a href="https://github.com/network-wrangler/projectcard">Project Card</a>.</li>
+<li>Converts two Cube <code>LIN</code> files, which are Cube&rsquo;s way of representing transit, into a Project Card. Note that Cube&rsquo;s log files do not record transit edits. Rather, Cube writes out an updated <code>LIN</code> file. Cube Wrangler assesses the differences in the <code>LIN</code> files and creates a Project Card that represents the edits.</li>
 </ul>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link"> ¶</a></h2>
 <p>[NOT YET IMPLEMENTED]</p>
 <p>The Cube Wrangler package is available on PyPI. If you are managing multiple python versions, we suggest using <a href="https://virtualenv.pypa.io/en/latest/"><code>virtualenv</code></a> or <a href="https://conda.io/en/latest/"><code>conda</code></a> virtual environments. <code>conda</code> is the environment manager that is contained within both the Anaconda and mini-conda applications.</p>
-<p>An example instalion using conda in the command line is as follows:</p>
+<p>An example installation using conda in the command line is as follows:</p>
 <div class="codehilite"><table class="codehilitetable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">1</span>
 <span class="normal">2</span>
 <span class="normal">3</span>
