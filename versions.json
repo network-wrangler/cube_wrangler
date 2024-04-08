@@ -1,5 +1,10 @@
 [
   {
+    "version": "main",
+    "title": "main",
+    "aliases": []
+  },
+  {
     "version": "add_docs",
     "title": "add_docs",
     "aliases": []
