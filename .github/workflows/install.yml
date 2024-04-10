@@ -33,7 +33,9 @@ jobs:
       - name: Install network wrangler
         run: |
           # clone the network wrangler repo
-          git clone https://github.com/wsp-sag/network_wrangler.git@develop_with_ranch#egg=network_wrangler
+          git clone https://github.com/wsp-sag/network_wrangler.git
+          cd network_wrangler
+          git checkout develop_with_ranch
           
           pip install -e .
       - name: Verify network wrangler installation
