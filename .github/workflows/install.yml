@@ -1,0 +1,41 @@
+name: Python package
+
+on: 
+    push:
+        branches:
+        - '*'
+    pull_request:
+        branches:
+        - '*'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.7"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Miniforge
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+            activate-environment: test-environment
+            python-version: ${{ matrix.python-version }}
+      # You can test your matrix by printing the current Python version
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+      - name: Install dependencies
+        run: |
+          conda env update -n test-environment -f conda-environments/environment.yml
+      # install network wrangler from github repo
+      - name: Install network wrangler
+        run: |
+          # clone the network wrangler repo
+          git clone https://github.com/wsp-sag/network_wrangler.git@develop_with_ranch#egg=network_wrangler
+          
+          pip install -e .
+      - name: Verify network wrangler installation
+        run: |
+          python -c "import network_wrangler; print(network_wrangler.__version__)"
