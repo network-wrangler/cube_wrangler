@@ -1,8 +1,9 @@
 channels:
   - conda-forge
+  - nodefaults
 dependencies:
-  - affine=2.3.0=py_0
-  - boost-cpp=1.74.0=h5b4e17d_4
+  - affine=2.3.0
+  - boost-cpp=1.74.0
   - branca=0.4.2=pyhd8ed1ab_0
   - brotlipy=0.7.0=py37hcc03f2d_1001
   - bzip2=1.0.8=h8ffe710_4
