@@ -39,7 +39,7 @@ jobs:
           cd network_wrangler
           git checkout develop_with_ranch
           
-          pip install -e .
+          pip install .
       - name: Install Cube Wrangler
         run: |
           pip install .
@@ -49,4 +49,4 @@ jobs:
       - name: Lint with Black
         run: |
           # stop the build if there are problems
-          black --check --diff .
+          black --check --diff --exclude cube_wrangler/cube_wrangler/network_wrangler/.
