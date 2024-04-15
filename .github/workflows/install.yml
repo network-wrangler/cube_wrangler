@@ -42,7 +42,7 @@ jobs:
           pip install -e .
       - name: Install Cube Wrangler
         run: |
-          python -m pip install -e .
+          pip install .
       - name: Verify network wrangler installation
         run: |
           python -c "import network_wrangler; print(network_wrangler.__version__)"
