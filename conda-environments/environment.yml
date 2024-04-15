@@ -105,7 +105,7 @@ dependencies:
   - rtree=0.9.7
   - scikit-learn=1.0
   - scipy=1.7.1
-  - setuptools=69
+  - setuptools=58.2.0
   - shapely=1.7.1
   - six=1.16.0
   - snuggs=1.4.7
