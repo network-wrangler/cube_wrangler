@@ -42,7 +42,6 @@ dependencies:
   - hdf5=1.12.1
   - icu=68.1
   - idna=2.10
-  - intel-openmp=2021.3.0
   - jbig=2.1
   - jinja2=3.0.2
   - joblib=1.1.0
