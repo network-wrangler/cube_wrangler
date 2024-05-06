@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 'setup_tests'
+          ref: 'main'
           path: 'cube_wrangler'
       - name: Set up Miniforge
         uses: conda-incubator/setup-miniconda@v2
