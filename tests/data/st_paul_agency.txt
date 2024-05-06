@@ -1,0 +1,3 @@
+agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone,agency_fare_url,agency_email,agency_raw_name
+0,Metro Transit,https://www.metrotransit.org,America/Chicago,en,612-373-3333,https://www.metrotransit.org/fares,,metro_transit_10_27_23
+0,MVTA,http://www.mvta.com,America/Chicago,en,952-882-7500,https://www.mvta.com/fare/,mvta@mvta.com,mvta

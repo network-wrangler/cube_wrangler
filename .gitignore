@@ -3,3 +3,6 @@
 
 # Local build of documentation website
 site/*
+
+*.pyc
+*.log

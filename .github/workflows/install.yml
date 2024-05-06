@@ -18,6 +18,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: 'setup_tests'
+          path: 'cube_wrangler'
       - name: Set up Miniforge
         uses: conda-incubator/setup-miniconda@v2
         with:
@@ -30,7 +33,7 @@ jobs:
         run: python -c "import sys; print(sys.version)"
       - name: Install dependencies
         run: |
-          mamba env update -n test-environment -f conda-environments/environment.yml
+          mamba env update -n test-environment -f cube_wrangler/conda-environments/environment.yml
       # install network wrangler from github repo
       - name: Install network wrangler
         run: |
@@ -40,13 +43,23 @@ jobs:
           git checkout develop_with_ranch
           
           pip install .
+          cd ..
       - name: Install Cube Wrangler
         run: |
+          cd cube_wrangler
           pip install .
+          cd ..
       - name: Verify network wrangler installation
         run: |
           python -c "import network_wrangler; print(network_wrangler.__version__)"
+      # - name: Verify cube wrangler installation
+      #   run: |
+      #     python -c "import cube_wrangler; print(cube_wrangler.__version__)"
       - name: Lint with Black
         run: |
           # stop the build if there are problems
           black --check --diff --exclude "/.*network_wrangler.*/" .
+      - name: Test cube_wrangler.tests
+        run: |
+          cd cube_wrangler/tests
+          python -m pytest .
