@@ -1,0 +1,2 @@
+route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,route_text_color,route_sort_order,agency_raw_name
+21,0,21,,Uptown - Lake St - Midway - Selby  Av,3,https://www.metrotransit.org/route/21,,000000,24,metro_transit_10_27_23
