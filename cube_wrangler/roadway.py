@@ -165,12 +165,12 @@ class ModelRoadwayNetwork(RoadwayNetwork):
                     )
             elif params.get("time_periods"):
                 for time_suffix in params["time_periods"]:
-                    self.links_df[
-                        out_var + "_" + time_suffix
-                    ] = self.get_property_by_time_period_and_group(
-                        params["v"],
-                        category=None,
-                        time_period=params["time_periods"][time_suffix],
+                    self.links_df[out_var + "_" + time_suffix] = (
+                        self.get_property_by_time_period_and_group(
+                            params["v"],
+                            category=None,
+                            time_period=params["time_periods"][time_suffix],
+                        )
                     )
             else:
                 raise ValueError(
