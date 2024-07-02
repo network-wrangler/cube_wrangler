@@ -43,7 +43,8 @@ class ModelRoadwayNetwork(RoadwayNetwork):
         if type(parameters) is dict:
             self.parameters = Parameters(**parameters)
         elif isinstance(parameters, Parameters):
-            self.parameters = Parameters(**parameters.__dict__)
+            # self.parameters = Parameters(**parameters.__dict__)
+            self.parameters = parameters
         else:
             msg = "Parameters should be a dict or instance of Parameters: found {} which is of type:{}".format(
                 parameters, type(parameters)
@@ -165,12 +166,12 @@ class ModelRoadwayNetwork(RoadwayNetwork):
                     )
             elif params.get("time_periods"):
                 for time_suffix in params["time_periods"]:
-                    self.links_df[out_var + "_" + time_suffix] = (
-                        self.get_property_by_time_period_and_group(
-                            params["v"],
-                            category=None,
-                            time_period=params["time_periods"][time_suffix],
-                        )
+                    self.links_df[
+                        out_var + "_" + time_suffix
+                    ] = self.get_property_by_time_period_and_group(
+                        params["v"],
+                        category=None,
+                        time_period=params["time_periods"][time_suffix],
                     )
             else:
                 raise ValueError(
@@ -232,6 +233,77 @@ class ModelRoadwayNetwork(RoadwayNetwork):
             0.001,
             temp_links_gdf[network_variable],
         )
+
+        self.links_df[network_variable] = temp_links_gdf[network_variable]
+
+    def calculate_distance(
+        self, network_variable="distance", centroidconnect_only=False, overwrite=False
+    ):
+        """
+        calculate link distance in miles
+
+        Args:
+            centroidconnect_only (Bool):  True if calculating distance for centroidconnectors only.  Default to True.
+            overwrite (Bool): True if overwriting existing variable in network.  Default to False.
+
+        Returns:
+            None
+
+        """
+
+        if network_variable in self.links_df:
+            if overwrite:
+                WranglerLogger.info(
+                    "Overwriting existing distance Variable '{}' already in network".format(
+                        network_variable
+                    )
+                )
+            else:
+                WranglerLogger.info(
+                    "Distance Variable '{}' already in network. Returning without overwriting.".format(
+                        network_variable
+                    )
+                )
+                return
+
+        """
+        Verify inputs
+        """
+
+        if ("centroidconnect" not in self.links_df) & (
+            "taz" not in self.links_df.roadway.unique()
+        ):
+            if centroidconnect_only:
+                msg = "No variable specified for centroid connector, calculating centroidconnect first"
+                WranglerLogger.error(msg)
+                raise ValueError(msg)
+
+        """
+        Start actual process
+        """
+
+        temp_links_gdf = self.links_df.copy()
+        temp_links_gdf.crs = "EPSG:4326"
+        temp_links_gdf = temp_links_gdf.to_crs(epsg=26915)
+
+        if centroidconnect_only:
+            WranglerLogger.info(
+                "Calculating {} for centroid connectors".format(network_variable)
+            )
+            temp_links_gdf[network_variable] = np.where(
+                temp_links_gdf.centroidconnect == 1,
+                temp_links_gdf.geometry.length / 1609.34,
+                temp_links_gdf[network_variable],
+            )
+        else:
+            WranglerLogger.info(
+                "Calculating distance for all links".format(network_variable)
+            )
+            temp_links_gdf[network_variable] = temp_links_gdf.geometry.length / 1609.34
+            # overwrite 0 distance with 0.001 mile
+            temp_links_gdf.loc[
+                temp_links_gdf[network_variable] == 0, network_variable
+            ] = 0.001
 
         self.links_df[network_variable] = temp_links_gdf[network_variable]
 
@@ -355,6 +427,99 @@ class ModelRoadwayNetwork(RoadwayNetwork):
 
         WranglerLogger.info(
             "Finished creating managed variable: {}".format(network_variable)
+        )
+
+    def add_variable_using_shst_reference(
+        self,
+        var_shst_csvdata=None,
+        shst_csv_variable=None,
+        network_variable=None,
+        network_var_type=int,
+        overwrite=False,
+    ):
+        """
+        Join network links with source data, via SHST API node match result.
+
+        Args:
+            var_shst_csvdata (str): File path to SHST API return.
+            shst_csv_variable (str): Variable name in the source data.
+            network_variable (str): Name of the variable that should be written to.
+            network_var_type : Variable type in the written network.
+            overwrite (bool): True is overwriting existing variable. Default to False.
+
+        Returns:
+            None
+
+        """
+        WranglerLogger.info(
+            "Adding Variable {} using Shared Streets Reference from {}".format(
+                network_variable, var_shst_csvdata
+            )
+        )
+
+        var_shst_df = pd.read_csv(var_shst_csvdata)
+        # there are aadt = 0 in the counts, drop them
+        var_shst_df = var_shst_df[var_shst_df[shst_csv_variable] > 0].copy()
+        # count station to shared street match - there are many-to-one matches, keep just one match
+        var_shst_df.drop_duplicates(subset=["shstReferenceId"], inplace=True)
+
+        if "shstReferenceId" not in var_shst_df.columns:
+            msg = "'shstReferenceId' required but not found in {}".format(var_shst_data)
+            WranglerLogger.error(msg)
+            raise ValueError(msg)
+
+        if shst_csv_variable not in var_shst_df.columns:
+            msg = "{} required but not found in {}".format(
+                shst_csv_variable, var_shst_data
+            )
+            WranglerLogger.error(msg)
+            raise ValueError(msg)
+
+        join_gdf = pd.merge(
+            self.links_df,
+            var_shst_df[["shstReferenceId", shst_csv_variable]],
+            how="left",
+            on="shstReferenceId",
+        )
+
+        join_gdf[shst_csv_variable].fillna(0, inplace=True)
+
+        if network_variable in self.links_df.columns and not overwrite:
+            join_gdf.loc[join_gdf[network_variable] == 0, network_variable] = join_gdf[
+                shst_csv_variable
+            ].astype(network_var_type)
+        else:
+            join_gdf[network_variable] = join_gdf[shst_csv_variable].astype(
+                network_var_type
+            )
+
+        self.links_df[network_variable] = join_gdf[network_variable]
+
+        # MN and WI counts are vehicles using the segment in both directions, no directional counts
+        # we will make sure both direction has the same daily AADT
+        dir_link_count_df = self.links_df[
+            (self.links_df[network_variable] > 0) & (self.links_df["drive_access"] == 1)
+        ][["A", "B", network_variable]].copy()
+        reverse_dir_link_count_df = dir_link_count_df.rename(
+            columns={"A": "B", "B": "A"}
+        ).copy()
+
+        link_count_df = pd.concat(
+            [dir_link_count_df, reverse_dir_link_count_df],
+            sort=False,
+            ignore_index=True,
+        )
+        link_count_df.drop_duplicates(subset=["A", "B"], inplace=True)
+
+        self.links_df = pd.merge(
+            self.links_df.drop(network_variable, axis=1),
+            link_count_df[["A", "B", network_variable]],
+            how="left",
+            on=["A", "B"],
+        )
+        self.links_df[network_variable].fillna(0, inplace=True)
+        WranglerLogger.info(
+            "Added variable: {} using Shared Streets Reference".format(network_variable)
         )
 
     def convert_int(self, int_col_names=[]):
@@ -620,6 +785,7 @@ class ModelRoadwayNetwork(RoadwayNetwork):
 
     def write_roadway_as_fixedwidth(
         self,
+        zones: int,
         node_output_variables: list = None,
         link_output_variables: list = None,
         output_link_txt: str = None,
@@ -666,6 +832,8 @@ class ModelRoadwayNetwork(RoadwayNetwork):
                 "\n - ".join(self.nodes_df.columns)
             )
         )
+
+        zones = zones if zones else self.parameters.zones
 
         link_output_variables = (
             link_output_variables
@@ -794,10 +962,142 @@ class ModelRoadwayNetwork(RoadwayNetwork):
         s = s[:-1]
         s += "\n"
         s += 'FILEO NETO = "complete_network.net" \n\n'
-        s += "ZONES = {} \n\n".format(self.parameters.zones)
+        s += "ZONES = {} \n\n".format(zones)
         s += "ROADWAY = LTRIM(TRIM(ROADWAY)) \n"
         s += "NAME = LTRIM(TRIM(NAME)) \n"
         s += "\n \nENDRUN"
 
         with open(output_cube_network_script, "w") as f:
             f.write(s)
+
+    # this should be moved to util
+    @staticmethod
+    def dataframe_to_fixed_width(df):
+        """
+        Convert dataframe to fixed width format, geometry column will not be transformed.
+
+        Args:
+            df (pandas DataFrame).
+
+        Returns:
+            pandas dataframe:  dataframe with fixed width for each column.
+            dict: dictionary with columns names as keys, column width as values.
+        """
+        WranglerLogger.info("Starting fixed width conversion")
+
+        # get the max length for each variable column
+        max_width_dict = dict(
+            [
+                (v, df[v].apply(lambda r: len(str(r)) if r != None else 0).max())
+                for v in df.columns.values
+                if v != "geometry"
+            ]
+        )
+
+        fw_df = df.drop("geometry", axis=1).copy()
+        for c in fw_df.columns:
+            fw_df[c] = fw_df[c].apply(lambda x: str(x))
+            fw_df["pad"] = fw_df[c].apply(lambda x: " " * (max_width_dict[c] - len(x)))
+            fw_df[c] = fw_df.apply(lambda x: x["pad"] + x[c], axis=1)
+
+        return fw_df, max_width_dict
+
+    @staticmethod
+    def read_match_result(path):
+        """
+        Reads the shst geojson match returns.
+
+        Returns shst dataframe.
+
+        Reading lots of same type of file and concatenating them into a single DataFrame.
+
+        Args:
+            path (str): File path to SHST match results.
+
+        Returns:
+            geodataframe: geopandas geodataframe
+
+        ##todo
+        not sure why we need, but should be in utilities not this class
+        """
+        refId_gdf = DataFrame()
+        refid_file = glob.glob(path)
+        for i in refid_file:
+            new = gpd.read_file(i)
+            refId_gdf = pd.concat([refId_gdf, new], ignore_index=True, sort=False)
+        return refId_gdf
+
+    @staticmethod
+    def get_attribute(
+        links_df,
+        join_key,  # either "shstReferenceId", or "shstGeometryId", tests showed the latter gave better coverage
+        source_shst_ref_df,  # source shst refId
+        source_gdf,  # source dataframe
+        field_name,  # , # targetted attribute from source
+    ):
+        """
+        Gets attribute from source data using SHST match result.
+
+        Args:
+            links_df (dataframe): The network dataframe that new attribute should be written to.
+            join_key (str): SHST ID variable name used to join source data with network dataframe.
+            source_shst_ref_df (str): File path to source data SHST match result.
+            source_gdf (str): File path to source data.
+            field_name (str): Name of the attribute to get from source data.
+
+        Returns:
+            None
+        """
+        # join based on shared streets geometry ID
+        # pp_link_id is shared streets match return
+        # source_ink_id is mrcc
+        WranglerLogger.debug(
+            "source ShSt rename_variables_for_dbf columns\n{}".format(
+                source_shst_ref_df.columns
+            )
+        )
+        WranglerLogger.debug("source gdf columns\n{}".format(source_gdf.columns))
+        # end up with OSM network with the MRCC Link ID
+        # could also do with route_sys...would that be quicker?
+        join_refId_df = pd.merge(
+            links_df,
+            source_shst_ref_df[[join_key, "pp_link_id", "score"]].rename(
+                columns={"pp_link_id": "source_link_id", "score": "source_score"}
+            ),
+            how="left",
+            on=join_key,
+        )
+
+        # joined with MRCC dataframe to get route_sys
+
+        join_refId_df = pd.merge(
+            join_refId_df,
+            source_gdf[["LINK_ID", field_name]].rename(
+                columns={"LINK_ID": "source_link_id"}
+            ),
+            how="left",
+            on="source_link_id",
+        )
+
+        # drop duplicated records with same field value
+
+        join_refId_df.drop_duplicates(
+            subset=["model_link_id", "shstReferenceId", field_name], inplace=True
+        )
+
+        # more than one match, take the best score
+
+        join_refId_df.sort_values(
+            by=["model_link_id", "source_score"],
+            ascending=True,
+            na_position="first",
+            inplace=True,
+        )
+
+        join_refId_df.drop_duplicates(
+            subset=["model_link_id"], keep="last", inplace=True
+        )
+
+        # self.links_df[field_name] = join_refId_df[field_name]
+
+        return join_refId_df[links_df.columns.tolist() + [field_name, "source_link_id"]]
