@@ -25,7 +25,6 @@ jobs:
         with:
           miniforge-variant: Mambaforge
           activate-environment: test-environment
-          environment-file: cube_wrangler/conda-environments/environment.yml
           use-mamba: true
           python-version: ${{ matrix.python-version }}
       # You can test your matrix by printing the current Python version
@@ -41,12 +40,13 @@ jobs:
           git clone https://github.com/wsp-sag/network_wrangler.git
           cd network_wrangler
           git checkout develop_with_ranch
-          
+          conda activate test-environment
           pip install .
           cd ..
       - name: Install Cube Wrangler
         run: |
           cd cube_wrangler
+          conda activate test-environment
           pip install .
           cd ..
       - name: Verify network wrangler installation
