@@ -25,6 +25,7 @@ jobs:
         with:
           miniforge-variant: Mambaforge
           activate-environment: test-environment
+          environment-file: cube_wrangler/conda-environments/environment.yml
           use-mamba: true
           python-version: ${{ matrix.python-version }}
       # You can test your matrix by printing the current Python version
