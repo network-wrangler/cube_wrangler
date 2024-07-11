@@ -27,19 +27,12 @@ jobs:
           activate-environment: test-environment
           use-mamba: true
           python-version: ${{ matrix.python-version }}
-
-      - name: Initialize Conda
-        run: echo "source $(conda info --base)/etc/profile.d/conda.sh" >> $GITHUB_ENV
-      
+          auto-activate-base: false
       # You can test your matrix by printing the current Python version
       - name: Display Python version
-        run: |
-          conda activate test-environment
-          python -c "import sys; print(sys.version)"
-      
+        run: python -c "import sys; print(sys.version)"
       - name: Install dependencies
         run: |
-          conda activate test-environment
           mamba env update -n test-environment -f cube_wrangler/conda-environments/environment.yml
       # install network wrangler from github repo
       - name: Install network wrangler
@@ -48,29 +41,24 @@ jobs:
           git clone https://github.com/wsp-sag/network_wrangler.git
           cd network_wrangler
           git checkout develop_with_ranch
-          conda activate test-environment
+          
           pip install .
           cd ..
-      
       - name: Install Cube Wrangler
         run: |
           cd cube_wrangler
-          conda activate test-environment
           pip install .
           cd ..
-      
       - name: Verify network wrangler installation
         run: |
           python -c "import network_wrangler; print(network_wrangler.__version__)"
       # - name: Verify cube wrangler installation
       #   run: |
       #     python -c "import cube_wrangler; print(cube_wrangler.__version__)"
-      
       - name: Lint with Black
         run: |
           # stop the build if there are problems
           black --check --diff --exclude "/.*network_wrangler.*/" .
-      
       - name: Test cube_wrangler.tests
         run: |
           cd cube_wrangler/tests
