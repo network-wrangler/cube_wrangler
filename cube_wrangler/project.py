@@ -9,13 +9,15 @@ import pandas as pd
 from pandas import DataFrame
 import geopandas as gpd
 
-from network_wrangler import ProjectCard
-from network_wrangler import RoadwayNetwork
+# from network_wrangler import ProjectCard
+from projectcard import ProjectCard
+from network_wrangler.roadway.network import RoadwayNetwork
+from network_wrangler import load_roadway
 
 from .transit import StandardTransit
 from .logger import WranglerLogger
 from .parameters import Parameters
-from .roadway import ModelRoadwayNetwork
+from .roadway import split_properties_by_time_period_and_category
 from .util import column_name_to_parts
 
 
@@ -323,22 +325,31 @@ class Project(object):
             WranglerLogger.error(msg)
             raise ValueError(msg)
         if base_roadway_dir:
-            base_roadway_network = ModelRoadwayNetwork.read(
-                os.path.join(base_roadway_dir, "link.json"),
-                os.path.join(base_roadway_dir, "node.geojson"),
-                os.path.join(base_roadway_dir, "shape.geojson"),
-                fast=True,
-                recalculate_calculated_variables=recalculate_calculated_variables,
-                recalculate_distance=recalculate_distance,
-                parameters=parameters,
+            base_roadway_network = load_roadway(
+                links_file=os.path.join(base_roadway_dir, "link.json"),
+                nodes_file=os.path.join(base_roadway_dir, "node.geojson"),
+                shapes_file=os.path.join(base_roadway_dir, "shape.geojson"),
             )
-            base_roadway_network.split_properties_by_time_period_and_category()
+            # base_roadway_network = ModelRoadwayNetwork.read(
+            #     os.path.join(base_roadway_dir, "link.json"),
+            #     os.path.join(base_roadway_dir, "node.geojson"),
+            #     os.path.join(base_roadway_dir, "shape.geojson"),
+            #     fast=True,
+            #     recalculate_calculated_variables=recalculate_calculated_variables,
+            #     recalculate_distance=recalculate_distance,
+            #     parameters=parameters,
+            # )
+            base_roadway_network = split_properties_by_time_period_and_category(
+                roadway_net=base_roadway_network, parameters=parameters
+            )
         elif base_roadway_network:
-            if not isinstance(base_roadway_network, ModelRoadwayNetwork):
-                base_roadway_network = ModelRoadwayNetwork.from_RoadwayNetwork(
-                    roadway_network_object=base_roadway_network, parameters=parameters
-                )
-            base_roadway_network.split_properties_by_time_period_and_category()
+            # if not isinstance(base_roadway_network, ModelRoadwayNetwork):
+            #     base_roadway_network = ModelRoadwayNetwork.from_RoadwayNetwork(
+            #         roadway_network_object=base_roadway_network, parameters=parameters
+            #     )
+            base_roadway_network = split_properties_by_time_period_and_category(
+                roadway_net=base_roadway_network, parameters=parameters
+            )
         else:
             msg = "No base roadway network."
             WranglerLogger.info(msg)
@@ -428,7 +439,7 @@ class Project(object):
 
     @staticmethod
     def determine_roadway_network_changes_compatibility(
-        base_roadway_network: ModelRoadwayNetwork,
+        base_roadway_network,
         roadway_changes: DataFrame,
         parameters: Parameters,
     ):
