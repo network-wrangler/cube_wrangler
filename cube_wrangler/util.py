@@ -102,7 +102,7 @@ def column_name_to_parts(c, parameters=None):
 def shorten_name(name):
     if type(name) == str:
         name_list = name.split(",")
-    elif type(name) in [float, np.int32, np.int64]:
+    elif type(name) in [np.float, np.int32, np.int64]:
         name_list = str(name)
     else:
         name_list = name
