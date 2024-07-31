@@ -101,7 +101,7 @@ class Parameters:
             self.settings_location, "log_to_net.csv"
         )
 
-        self.output_variables = [
+        self.output_link_variables = [
             "model_link_id",
             "link_id",
             "A",
@@ -183,6 +183,19 @@ class Parameters:
             "bike",
             "walk",
         ]
+        
+        self.output_node_variables = [
+            "bike_access",
+            "walk_access",
+            "drive_access",
+            "N",
+            "osm_node_id",
+            "X",
+            "Y",
+            "bus_only",
+            "rail_only",
+            "county"
+        ]
 
         self.output_link_shp = os.path.join(self.scratch_location, "links.shp")
         self.output_node_shp = os.path.join(self.scratch_location, "nodes.shp")
@@ -231,9 +244,6 @@ class Parameters:
             "count_daily",
             "centroidconnect",
             "bike_facility",
-            "drive_access",
-            "walk_access",
-            "bike_access",
             "truck_access",
             "drive_node",
             "walk_node",
@@ -245,8 +255,6 @@ class Parameters:
             "ML_lanes_NT",
             "segment_id",
             "managed",
-            "bus_only",
-            "rail_only",
             "bike",
             "walk",
         ]
