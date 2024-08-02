@@ -101,7 +101,7 @@ class Parameters:
             self.settings_location, "log_to_net.csv"
         )
 
-        self.output_link_variables = [
+        self.output_variables = [
             "model_link_id",
             "link_id",
             "A",
@@ -182,20 +182,7 @@ class Parameters:
             "bike_facility",
             "bike",
             "walk",
-        ]
-        
-        self.output_node_variables = [
-            "bike_access",
-            "walk_access",
-            "drive_access",
-            "N",
-            "osm_node_id",
-            "X",
-            "Y",
-            "bus_only",
-            "rail_only",
-            "county"
-        ]
+        ]        
 
         self.output_link_shp = os.path.join(self.scratch_location, "links.shp")
         self.output_node_shp = os.path.join(self.scratch_location, "nodes.shp")

@@ -586,6 +586,8 @@ def convert_bool(roadway_net=None, parameters=None, bool_col_names=[]):
         roadway_net.links_df[c] = roadway_net.links_df[c].replace(np.nan, False)
         # REPLACE BLANKS WITH ZERO FOR INTEGER COLUMNS
         roadway_net.links_df[c] = roadway_net.links_df[c].replace("", False)
+        roadway_net.links_df[c] = roadway_net.links_df[c].replace("0", False)
+        roadway_net.links_df[c] = roadway_net.links_df[c].replace("1", True)
         try:
             roadway_net.links_df[c] = roadway_net.links_df[c].astype(bool)
         except ValueError:
@@ -596,6 +598,8 @@ def convert_bool(roadway_net=None, parameters=None, bool_col_names=[]):
     for c in list(set(roadway_net.nodes_df.columns) & set(bool_col_names)):
         roadway_net.nodes_df[c] = roadway_net.nodes_df[c].replace(np.nan, False)
         roadway_net.nodes_df[c] = roadway_net.nodes_df[c].replace("", False)
+        roadway_net.nodes_df[c] = roadway_net.nodes_df[c].replace("0", False)
+        roadway_net.nodes_df[c] = roadway_net.nodes_df[c].replace("1", True)
         try:
             roadway_net.nodes_df[c] = roadway_net.nodes_df[c].astype(bool)
         except ValueError:
@@ -893,7 +897,7 @@ def write_roadway_as_fixedwidth(
         else [
             c
             for c in roadway_net.links_df.columns
-            if c in parameters.output_link_variables
+            if c in parameters.output_variables
         ]
     )
 
@@ -903,7 +907,7 @@ def write_roadway_as_fixedwidth(
         else [
             c
             for c in roadway_net.nodes_df.columns
-            if c in parameters.output_node_variables
+            if c in parameters.output_variables
         ]
     )
 

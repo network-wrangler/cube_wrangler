@@ -119,7 +119,7 @@ class StandardTransit(object):
 
         # trip_cube_df["LIN"] = trip_cube_df.apply(self.cube_format, axis=1)
 
-        l = self.feed.trips_metcouncil_df["LIN"].tolist()
+        l = self.feed.trip_cube_df["LIN"].tolist()
         l = [";;<<PT>><<LINE>>;;"] + l
 
         with open(outpath, "w") as f:

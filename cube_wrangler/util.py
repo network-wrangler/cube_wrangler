@@ -64,9 +64,9 @@ def column_name_to_parts(c, parameters=None):
         parameters = Parameters()
 
     if c[0:2] == "ML":
-        managed = True
+        managed = 1
     else:
-        managed = False
+        managed = 0
 
     time_period = None
     category = None
