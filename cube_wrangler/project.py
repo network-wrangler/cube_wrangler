@@ -10,7 +10,7 @@ from pandas import DataFrame
 import geopandas as gpd
 
 # from network_wrangler import ProjectCard
-from projectcard import ProjectCard
+from projectcard import ProjectCard, write_card
 from network_wrangler.roadway.network import RoadwayNetwork
 from network_wrangler import load_roadway
 
@@ -143,7 +143,7 @@ class Project(object):
         Returns:
             None
         """
-        ProjectCard(self.card_data).write(filename=filename)
+        write_card(ProjectCard(self.card_data), filename=filename)
 
     @staticmethod
     def create_project(
