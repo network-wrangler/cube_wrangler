@@ -617,7 +617,10 @@ class Project(object):
                 links_to_delete = cube_delete_df["model_link_id"].tolist()
                 delete_link_dict = {
                     "roadway_deletion":{
-                        "links": {"model_link_id": links_to_delete},
+                        "links": {
+                            "model_link_id": links_to_delete, 
+                            "modes": ["any"]
+                        }
                     },
                 }
                 WranglerLogger.debug("{} Links Deleted.".format(len(links_to_delete)))
@@ -972,6 +975,7 @@ class Project(object):
                     item.pop("property"): item
                     for item in link_dict["properties"]
                 }
+                link_dict["facility"]["links"].update({"modes": ["any"]})
                 updated_link_dict = {
                     "roadway_property_change":{
                         "property_changes": updated_properties,
