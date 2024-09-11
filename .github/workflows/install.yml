@@ -27,6 +27,7 @@ jobs:
           activate-environment: test-environment
           use-mamba: true
           python-version: ${{ matrix.python-version }}
+          auto-activate-base: false
       # You can test your matrix by printing the current Python version
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
