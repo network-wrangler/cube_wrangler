@@ -8,7 +8,6 @@
     cube_transit_net = StandardTransit.read_gtfs(BASE_TRANSIT_DIR)
     cube_transit_net.write_as_cube_lin(os.path.join(WRITE_DIR, "outfile.lin"))
 """
-
 import os
 import copy
 import csv
@@ -21,7 +20,7 @@ from pandas import DataFrame
 import pandas as pd
 import partridge as ptg
 
-from network_wrangler import TransitNetwork
+from network_wrangler.transit.network import TransitNetwork
 
 from .logger import WranglerLogger
 from .parameters import Parameters
@@ -120,7 +119,7 @@ class StandardTransit(object):
 
         # trip_cube_df["LIN"] = trip_cube_df.apply(self.cube_format, axis=1)
 
-        l = self.feed.trips_metcouncil_df["LIN"].tolist()
+        l = self.feed.trip_cube_df["LIN"].tolist()
         l = [";;<<PT>><<LINE>>;;"] + l
 
         with open(outpath, "w") as f:

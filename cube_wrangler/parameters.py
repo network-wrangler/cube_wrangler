@@ -182,7 +182,7 @@ class Parameters:
             "bike_facility",
             "bike",
             "walk",
-        ]
+        ]        
 
         self.output_link_shp = os.path.join(self.scratch_location, "links.shp")
         self.output_node_shp = os.path.join(self.scratch_location, "nodes.shp")
@@ -231,9 +231,6 @@ class Parameters:
             "count_daily",
             "centroidconnect",
             "bike_facility",
-            "drive_access",
-            "walk_access",
-            "bike_access",
             "truck_access",
             "drive_node",
             "walk_node",
@@ -245,8 +242,6 @@ class Parameters:
             "ML_lanes_NT",
             "segment_id",
             "managed",
-            "bus_only",
-            "rail_only",
             "bike",
             "walk",
         ]

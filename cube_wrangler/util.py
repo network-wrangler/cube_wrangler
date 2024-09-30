@@ -64,9 +64,9 @@ def column_name_to_parts(c, parameters=None):
         parameters = Parameters()
 
     if c[0:2] == "ML":
-        managed = True
+        managed = 1
     else:
-        managed = False
+        managed = 0
 
     time_period = None
     category = None
@@ -102,7 +102,7 @@ def column_name_to_parts(c, parameters=None):
 def shorten_name(name):
     if type(name) == str:
         name_list = name.split(",")
-    elif type(name) in [np.float, np.int32, np.int64]:
+    elif type(name) in [float, np.int32, np.int64]:
         name_list = str(name)
     else:
         name_list = name

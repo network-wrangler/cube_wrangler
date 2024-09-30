@@ -9,13 +9,15 @@ import pandas as pd
 from pandas import DataFrame
 import geopandas as gpd
 
-from network_wrangler import ProjectCard
-from network_wrangler import RoadwayNetwork
+# from network_wrangler import ProjectCard
+from projectcard import ProjectCard, write_card
+from network_wrangler.roadway.network import RoadwayNetwork
+from network_wrangler import load_roadway
 
 from .transit import StandardTransit
 from .logger import WranglerLogger
 from .parameters import Parameters
-from .roadway import ModelRoadwayNetwork
+from .roadway import split_properties_by_time_period_and_category
 from .util import column_name_to_parts
 
 
@@ -141,7 +143,7 @@ class Project(object):
         Returns:
             None
         """
-        ProjectCard(self.card_data).write(filename=filename)
+        write_card(ProjectCard(self.card_data), filename=filename)
 
     @staticmethod
     def create_project(
@@ -323,22 +325,33 @@ class Project(object):
             WranglerLogger.error(msg)
             raise ValueError(msg)
         if base_roadway_dir:
-            base_roadway_network = ModelRoadwayNetwork.read(
-                os.path.join(base_roadway_dir, "link.json"),
-                os.path.join(base_roadway_dir, "node.geojson"),
-                os.path.join(base_roadway_dir, "shape.geojson"),
-                fast=True,
-                recalculate_calculated_variables=recalculate_calculated_variables,
-                recalculate_distance=recalculate_distance,
-                parameters=parameters,
+            base_roadway_network = load_roadway(
+                links_file=os.path.join(base_roadway_dir, "link.json"),
+                nodes_file=os.path.join(base_roadway_dir, "node.geojson"),
+                shapes_file=os.path.join(base_roadway_dir, "shape.geojson")
             )
-            base_roadway_network.split_properties_by_time_period_and_category()
+            # base_roadway_network = ModelRoadwayNetwork.read(
+            #     os.path.join(base_roadway_dir, "link.json"),
+            #     os.path.join(base_roadway_dir, "node.geojson"),
+            #     os.path.join(base_roadway_dir, "shape.geojson"),
+            #     fast=True,
+            #     recalculate_calculated_variables=recalculate_calculated_variables,
+            #     recalculate_distance=recalculate_distance,
+            #     parameters=parameters,
+            # )
+            base_roadway_network = split_properties_by_time_period_and_category(
+                roadway_net=base_roadway_network, 
+                parameters=parameters
+            )
         elif base_roadway_network:
-            if not isinstance(base_roadway_network, ModelRoadwayNetwork):
-                base_roadway_network = ModelRoadwayNetwork.from_RoadwayNetwork(
-                    roadway_network_object=base_roadway_network, parameters=parameters
-                )
-            base_roadway_network.split_properties_by_time_period_and_category()
+            # if not isinstance(base_roadway_network, ModelRoadwayNetwork):
+            #     base_roadway_network = ModelRoadwayNetwork.from_RoadwayNetwork(
+            #         roadway_network_object=base_roadway_network, parameters=parameters
+            #     )
+            base_roadway_network = split_properties_by_time_period_and_category(
+                roadway_net=base_roadway_network, 
+                parameters=parameters
+            )
         else:
             msg = "No base roadway network."
             WranglerLogger.info(msg)
@@ -428,7 +441,7 @@ class Project(object):
 
     @staticmethod
     def determine_roadway_network_changes_compatibility(
-        base_roadway_network: ModelRoadwayNetwork,
+        base_roadway_network,
         roadway_changes: DataFrame,
         parameters: Parameters,
     ):
@@ -603,8 +616,12 @@ class Project(object):
             if len(cube_delete_df) > 0:
                 links_to_delete = cube_delete_df["model_link_id"].tolist()
                 delete_link_dict = {
-                    "category": "Roadway Deletion",
-                    "links": {"model_link_id": links_to_delete},
+                    "roadway_deletion":{
+                        "links": {
+                            "model_link_id": links_to_delete, 
+                            "modes": ["any"]
+                        }
+                    },
                 }
                 WranglerLogger.debug("{} Links Deleted.".format(len(links_to_delete)))
             else:
@@ -618,7 +635,7 @@ class Project(object):
         ):
             """ """
             WranglerLogger.debug("Processing link additions")
-            cube_add_df = link_changes_df[link_changes_df.OPERATION_final == "A"]
+            cube_add_df = link_changes_df[link_changes_df.OPERATION_final == "A"].copy()
             if len(cube_add_df) == 0:
                 WranglerLogger.debug("No link additions processed")
                 return {}
@@ -689,10 +706,16 @@ class Project(object):
 
             add_link_properties = cube_add_df[add_col_final].to_dict("records")
 
+            updated_add_link_dict = {"roadway_addition":{"links":[]}}
+            for link_dict in add_link_properties:
+                updated_add_link_dict["roadway_addition"]["links"].append(
+                    link_dict
+                ) 
+
             # WranglerLogger.debug("Add Link Properties: {}".format(add_link_properties))
             WranglerLogger.debug("{} Links Added".format(len(add_link_properties)))
 
-            return {"category": "Add New Roadway", "links": add_link_properties}
+            return updated_add_link_dict
 
         def _process_node_additions(node_add_df):
             """ """
@@ -844,7 +867,7 @@ class Project(object):
                     }
                 if p_time_period:
                     if managed_lane == 1:
-                        _d["time"] = list(
+                        _d["timespan"] = list(
                             self.parameters.time_period_to_time[p_time_period]
                         )
                         if p_category:
@@ -854,7 +877,7 @@ class Project(object):
                 if (p_base_name in processed_properties) & (managed_lane == 1):
                     for processed_p in property_dict_list:
                         if processed_p["property"] == p_base_name:
-                            processed_p["timeofday"] += [_d]
+                            processed_p["scoped"] += [_d]
                 elif (p_base_name in processed_properties) & (managed_lane == 0):
                     for processed_p in property_dict_list:
                         if processed_p["property"] == p_base_name:
@@ -867,7 +890,7 @@ class Project(object):
                                 raise ValueError(msg)
                 elif p_time_period:
                     if managed_lane == 1:
-                        property_dict = {"property": p_base_name, "timeofday": [_d]}
+                        property_dict = {"property": p_base_name, "scoped": [_d]}
                         processed_properties.append(p_base_name)
                         property_dict_list.append(property_dict)
                     else:
@@ -925,7 +948,7 @@ class Project(object):
 
             # Reformat model link id to correct "facility" format
             change_link_dict_df["facility"] = change_link_dict_df.apply(
-                lambda x: {"link": [{"model_link_id": x.model_link_id}]}, axis=1
+                lambda x: {"links": {"model_link_id": x.model_link_id}}, axis=1
             )
 
             # WranglerLogger.debug('change_link_dict_df 3: {}'.format(change_link_dict_df))
@@ -939,16 +962,32 @@ class Project(object):
                 )
             )
 
-            change_link_dict_df["category"] = "Roadway Property Change"
+            # change_link_dict_df["category"] = "Roadway Property Change"
 
             change_link_dict_list = change_link_dict_df[
-                ["category", "facility", "properties"]
-            ].to_dict("record")
+                ["facility", "properties"]
+            ].to_dict("records")
+
+            # update the change link dictionry to be consistent with the new project card schema
+            updated_change_link_dict_list = []
+            for link_dict in change_link_dict_list:
+                updated_properties = {
+                    item.pop("property"): item
+                    for item in link_dict["properties"]
+                }
+                link_dict["facility"]["links"].update({"modes": ["any"]})
+                updated_link_dict = {
+                    "roadway_property_change":{
+                        "property_changes": updated_properties,
+                        "facility": link_dict["facility"]
+                    }
+                }
+                updated_change_link_dict_list.append(updated_link_dict)
 
             WranglerLogger.debug(
-                "{} Changes Processed".format(len(change_link_dict_list))
+                "{} Changes Processed".format(len(updated_change_link_dict_list))
             )
-            return change_link_dict_list
+            return updated_change_link_dict_list
 
         def _consolidate_actions(log, base, key_list):
             log_df = log.copy()
@@ -971,7 +1010,7 @@ class Project(object):
             return log_df[changeable_col + ["OPERATION_final"]]
 
         delete_link_dict = None
-        add_link_dict = None
+        add_link_dict = []
         change_link_dict_list = []
 
         if len(link_changes_df) != 0:
@@ -1038,12 +1077,17 @@ class Project(object):
             node_add_df = node_changes_df[node_changes_df.OPERATION_final == "A"]
 
             if add_link_dict:
-                add_link_dict["nodes"] = _process_node_additions(node_add_df)
+                add_link_dict["roadway_addition"].update(
+                    {"nodes": _process_node_additions(node_add_df)}
+                )
             else:
-                add_link_dict = {
-                    "category": "Add New Roadway",
-                    "nodes": _process_node_additions(node_add_df),
-                }
+                add_link_dict.append(
+                    {
+                        "roadway_addition":{
+                            "nodes": _process_node_additions(node_add_df),
+                        },
+                    }
+                )
 
         else:
             None
