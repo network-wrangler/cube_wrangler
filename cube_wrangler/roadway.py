@@ -9,6 +9,8 @@ from pandas import DataFrame
 import numpy as np
 
 from network_wrangler.roadway.network import RoadwayNetwork
+from network_wrangler.roadway.links.scopes import prop_for_scope
+
 from .parameters import Parameters
 from .logger import WranglerLogger
 
@@ -159,7 +161,8 @@ def split_properties_by_time_period_and_category(roadway_net=None, parameters=No
             ):
                 roadway_net.links_df[
                     out_var + "_" + category_suffix + "_" + time_suffix
-                ] = roadway_net.get_property_by_timespan_and_group(
+                ] = prop_for_scope(
+                    roadway_net.links_df,
                     params["v"],
                     category=params["categories"][category_suffix],
                     timespan=params["time_periods"][time_suffix],
@@ -168,7 +171,8 @@ def split_properties_by_time_period_and_category(roadway_net=None, parameters=No
             for time_suffix in params["time_periods"]:
                 roadway_net.links_df[
                     out_var + "_" + time_suffix
-                ] = roadway_net.get_property_by_timespan_and_group(
+                ] = prop_for_scope(
+                    roadway_net.links_df,
                     params["v"],
                     category=None,
                     timespan=params["time_periods"][time_suffix],
@@ -626,8 +630,8 @@ def fill_na(roadway_net=None, parameters=None):
                 lambda k: 0 if k in [np.nan, "", float("nan"), "NaN"] else k
             )
 
-        else:
-            roadway_net.links_df[x].fillna("", inplace=True)
+        # else:
+        #     roadway_net.links_df[x].fillna("", inplace=True)
 
     for x in list(roadway_net.nodes_df.columns):
         if x in num_col:
