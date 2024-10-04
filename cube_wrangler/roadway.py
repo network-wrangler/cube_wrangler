@@ -134,6 +134,8 @@ def split_properties_by_time_period_and_category(roadway_net=None, parameters=No
     """
     import itertools
 
+    link_attrs = copy.deepcopy(roadway_net.links_df.attrs)
+
     if properties_to_split == None:
         properties_to_split = parameters.properties_to_split
 
@@ -181,6 +183,9 @@ def split_properties_by_time_period_and_category(roadway_net=None, parameters=No
             raise ValueError(
                 "Shoudn't have a category without a time period: {}".format(params)
             )
+
+    roadway_net.links_df.attrs = link_attrs
+
     return roadway_net
     
 # def create_calculated_variables(self):
@@ -204,6 +209,8 @@ def calculate_distance_miles(roadway_net=None, network_variable="distance", over
         None
 
     """
+
+    link_attrs = copy.deepcopy(roadway_net.links_df.attrs)
 
     if network_variable in roadway_net.links_df:
         if overwrite or (roadway_net.links_df[network_variable].isnull().any()):
@@ -240,6 +247,7 @@ def calculate_distance_miles(roadway_net=None, network_variable="distance", over
     )
 
     roadway_net.links_df[network_variable] = temp_links_gdf[network_variable]
+    roadway_net.links_df.attrs = link_attrs
 
     return roadway_net
 
@@ -288,6 +296,7 @@ def calculate_distance(
     """
     Start actual process
     """
+    link_attrs = copy.deepcopy(roadway_net.links_df.attrs)
 
     temp_links_gdf = roadway_net.links_df.copy()
     temp_links_gdf.crs = "EPSG:4326"
@@ -313,6 +322,7 @@ def calculate_distance(
         ] = 0.001
 
     roadway_net.links_df[network_variable] = temp_links_gdf[network_variable]
+    roadway_net.links_df.attrs = link_attrs
 
     return roadway_net
 
@@ -332,6 +342,8 @@ def create_ML_variable(
     Returns:
         None
     """
+    link_attrs = copy.deepcopy(roadway_net.links_df.attrs)
+
     if network_variable in roadway_net.links_df:
         if overwrite:
             WranglerLogger.info(
@@ -355,6 +367,8 @@ def create_ML_variable(
     WranglerLogger.info(
         "Finished creating ML lanes variable: {}".format(network_variable)
     )
+    roadway_net.links_df.attrs = link_attrs
+
     return roadway_net
 
 def create_hov_corridor_variable(
@@ -373,6 +387,8 @@ def create_hov_corridor_variable(
     Returns:
         None
     """
+    link_attrs = copy.deepcopy(roadway_net.links_df.attrs)
+
     if network_variable in roadway_net.links_df:
         if overwrite:
             WranglerLogger.info(
@@ -397,6 +413,8 @@ def create_hov_corridor_variable(
     WranglerLogger.info(
         "Finished creating hov corridor variable: {}".format(network_variable)
     )
+    roadway_net.links_df.attrs = link_attrs
+
     return roadway_net
 
 def create_managed_variable(
@@ -415,6 +433,8 @@ def create_managed_variable(
     Returns:
         None
     """
+    link_attrs = copy.deepcopy(roadway_net.links_df.attrs)
+
     if network_variable in roadway_net.links_df:
         if overwrite:
             WranglerLogger.info(
@@ -439,6 +459,8 @@ def create_managed_variable(
     WranglerLogger.info(
         "Finished creating managed variable: {}".format(network_variable)
     )
+    roadway_net.links_df.attrs = link_attrs
+
     return roadway_net
 
 def add_variable_using_shst_reference(
@@ -463,6 +485,8 @@ def add_variable_using_shst_reference(
         None
 
     """
+    link_attrs = copy.deepcopy(roadway_net.links_df.attrs)
+
     WranglerLogger.info(
         "Adding Variable {} using Shared Streets Reference from {}".format(
             network_variable, var_shst_csvdata
@@ -533,12 +557,16 @@ def add_variable_using_shst_reference(
     WranglerLogger.info(
         "Added variable: {} using Shared Streets Reference".format(network_variable)
     )
+    roadway_net.links_df.attrs = link_attrs
+
     return roadway_net
 
 def convert_int(roadway_net=None, parameters=None, int_col_names=[]):
     """
     Convert integer columns
     """
+    link_attrs = copy.deepcopy(roadway_net.links_df.attrs)
+    node_attrs = copy.deepcopy(roadway_net.nodes_df.attrs)
 
     WranglerLogger.info("Converting variable type to MetCouncil standard")
 
@@ -573,13 +601,18 @@ def convert_int(roadway_net=None, parameters=None, int_col_names=[]):
             msg = f"Could not convert column {c} to integer."
             WranglerLogger.error(msg)
             raise ValueError(msg)
-    
+
+    roadway_net.links_df.attrs = link_attrs
+    roadway_net.nodes_df.attrs = node_attrs
+
     return roadway_net
 
 def convert_bool(roadway_net=None, parameters=None, bool_col_names=[]):
     """
     Convert boolean columns
     """
+    link_attrs = copy.deepcopy(roadway_net.links_df.attrs)
+    node_attrs = copy.deepcopy(roadway_net.nodes_df.attrs)
 
     WranglerLogger.info("Converting variable type to MetCouncil standard")
 
@@ -610,7 +643,10 @@ def convert_bool(roadway_net=None, parameters=None, bool_col_names=[]):
             msg = f"Could not convert column {c} to boolean."
             WranglerLogger.error(msg)
             raise ValueError(msg)
-    
+
+    roadway_net.links_df.attrs = link_attrs
+    roadway_net.nodes_df.attrs = node_attrs
+
     return roadway_net
 
 
@@ -618,6 +654,8 @@ def fill_na(roadway_net=None, parameters=None):
     """
     Fill na values from create_managed_lane_network()
     """
+    link_attrs = copy.deepcopy(roadway_net.links_df.attrs)
+    node_attrs = copy.deepcopy(roadway_net.nodes_df.attrs)
 
     WranglerLogger.info("Filling nan for network from network wrangler")
 
@@ -638,6 +676,10 @@ def fill_na(roadway_net=None, parameters=None):
             roadway_net.nodes_df[x].fillna(0, inplace=True)
         else:
             roadway_net.nodes_df[x].fillna("", inplace=True)
+
+    roadway_net.links_df.attrs = link_attrs
+    roadway_net.nodes_df.attrs = node_attrs
+
     return roadway_net
 
 def rename_variables_for_dbf(
