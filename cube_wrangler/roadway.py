@@ -942,8 +942,8 @@ def write_roadway_as_fixedwidth(
         if link_output_variables
         else [
             c
-            for c in roadway_net.links_df.columns
-            if c in parameters.output_variables
+            for c in parameters.output_variables
+            if c in roadway_net.links_df.columns
         ]
     )
 
@@ -952,8 +952,8 @@ def write_roadway_as_fixedwidth(
         if node_output_variables
         else [
             c
-            for c in roadway_net.nodes_df.columns
-            if c in parameters.output_variables
+            for c in parameters.output_variables
+            if c in roadway_net.nodes_df.columns
         ]
     )
 
@@ -986,8 +986,12 @@ def write_roadway_as_fixedwidth(
     """
     Start Process
     """
+    # convert boolean columns to 1/0
+    bool_link_col = [col for col in parameters.bool_col if col in roadway_net.links_df.columns]
+    bool_node_col = [col for col in parameters.bool_col if col in roadway_net.nodes_df.columns]
+
     link_ff_df, link_max_width_dict = dataframe_to_fixed_width(
-        roadway_net.links_df[link_output_variables]
+        roadway_net.links_df[link_output_variables], bool_link_col
     )
 
     if drive_only:
@@ -1005,7 +1009,7 @@ def write_roadway_as_fixedwidth(
     link_max_width_df.to_csv(output_link_header_width_txt, index=False)
 
     node_ff_df, node_max_width_dict = dataframe_to_fixed_width(
-        roadway_net.nodes_df[node_output_variables]
+        roadway_net.nodes_df[node_output_variables], bool_node_col
     )
     WranglerLogger.info("Writing out node database")
 
@@ -1074,12 +1078,13 @@ def write_roadway_as_fixedwidth(
 
 # this should be moved to util
 # @staticmethod
-def dataframe_to_fixed_width(df):
+def dataframe_to_fixed_width(df, bool_col):
     """
     Convert dataframe to fixed width format, geometry column will not be transformed.
 
     Args:
         df (pandas DataFrame).
+        bool_col (boolean column names)
 
     Returns:
         pandas dataframe:  dataframe with fixed width for each column.
@@ -1097,6 +1102,8 @@ def dataframe_to_fixed_width(df):
     )
 
     fw_df = df.drop("geometry", axis=1).copy()
+    fw_df[bool_col] = fw_df[bool_col].astype(int)
+
     for c in fw_df.columns:
         fw_df[c] = fw_df[c].apply(lambda x: str(x))
         fw_df["pad"] = fw_df[c].apply(lambda x: " " * (max_width_dict[c] - len(x)))
