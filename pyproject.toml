@@ -1,0 +1,11 @@
+[project]
+name = "cube-wrangler"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "lark>=1.2.2",
+    "partridge>=1.1.2",
+    "unidecode>=1.4.0",
+]
