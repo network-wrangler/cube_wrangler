@@ -4,6 +4,7 @@ import re
 from typing import Any, Dict, Optional, Union, List
 from csv import reader
 import numpy as np
+import numbers
 
 import pandas as pd
 from pandas import DataFrame
@@ -848,17 +849,19 @@ class Project(object):
                 # make the type of set value consistent with the base value
                 set_value = change_row[c]
                 if base_row[c] is not None:
-                    if isinstance(base_row[c], int):
+                    if isinstance(base_row[c], numbers.Integral):
                         set_value = int(set_value)
-                    elif isinstance(base_row[c], float):
+                        exist_value = int(base_row[c])
+                    elif isinstance(base_row[c], numbers.Real):
                         set_value = float(set_value)
+                        exist_value = float(base_row[c])
                     else:
                         None
                     if isinstance(base_row[c], bool):
                         set_value = bool(int(set_value))
 
                 _d = {
-                    "existing": base_row[c],
+                    "existing": exist_value,
                     "set": set_value,
                 }
                 if c in Project.CALCULATED_VALUES:
