@@ -1082,6 +1082,11 @@ def write_roadway_as_fixedwidth(
     s += 'FILEO NETO = "complete_network.net" \n\n'
     s += "ZONES = {} \n\n".format(zones)
     # trim whitespace from string columns
+    for col in parameters.string_col:
+        if col in link_max_width_dict:
+            s += "{} = LTRIM(TRIM({})) \n".format(col, col)
+        if col in node_max_width_dict:
+            s += "{} = LTRIM(TRIM({})) \n".format(col, col)
     if "ROADWAY" in link_max_width_dict:
         s += "ROADWAY = LTRIM(TRIM(ROADWAY)) \n"
     if "NAME" in link_max_width_dict:
