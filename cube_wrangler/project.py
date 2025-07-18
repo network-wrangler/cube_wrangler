@@ -614,6 +614,16 @@ class Project(object):
             WranglerLogger.debug("Processing link deletions")
 
             cube_delete_df = link_changes_df[link_changes_df.OPERATION_final == "D"]
+
+            # if "model_link_id" is not in cube log file
+            # we need to get it using the A and B columns
+            if "model_link_id" not in cube_delete_df.columns:
+                cube_delete_df = pd.merge(
+                    cube_delete_df,
+                    self.base_roadway_network.links_df[["A", "B", "model_link_id"]],
+                    on=["A", "B"],
+                    how="left"
+                )
             if len(cube_delete_df) > 0:
                 links_to_delete = cube_delete_df["model_link_id"].tolist()
                 delete_link_dict = {
