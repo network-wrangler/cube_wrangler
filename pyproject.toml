@@ -12,8 +12,13 @@ version = "0.1.0"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "geopandas>=1.1.1",
     "lark>=1.2.2",
+    "network-wrangler>=1.0b3",
+    "numpy>=2.2.6",
+    "pandas>=2.3.1",
     "partridge>=1.1.2",
+    "projectcard>=0.3.3",
     "unidecode>=1.4.0",
 ]
 
