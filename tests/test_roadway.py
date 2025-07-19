@@ -13,7 +13,6 @@ STPAUL_NODE_FILE = os.path.join(STPAUL_DIR, "st_paul_node.geojson")
 
 
 @pytest.mark.roadway
-@pytest.mark.travis
 def test_parameter_read(request):
     """
     Tests that parameters are read
@@ -26,7 +25,7 @@ def test_parameter_read(request):
 
 
 @pytest.mark.roadway
-@pytest.mark.travis
+@pytest.mark.skip(reason="This feature is moved.")
 def test_network_calculate_variables(request):
     """
     Tests that parameters are read

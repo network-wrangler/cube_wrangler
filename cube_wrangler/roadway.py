@@ -15,106 +15,6 @@ from .parameters import Parameters
 from .logger import WranglerLogger
 
 
-# class ModelRoadwayNetwork(RoadwayNetwork):
-#     """
-#     Subclass of network_wrangler class :ref:`RoadwayNetwork <network_wrangler:RoadwayNetwork>`
-
-#     A representation of the physical roadway network and its properties.
-#     """
-
-#     def __init__(
-#         self,
-#         nodes: GeoDataFrame,
-#         links: DataFrame,
-#         shapes: GeoDataFrame,
-#         parameters: Union[Parameters, dict] = {},
-#     ):
-#         """
-#         Constructor
-
-#         Args:
-#             nodes: geodataframe of nodes
-#             links: dataframe of links
-#             shapes: geodataframe of shapes
-#             parameters: dictionary of parameter settings (see Parameters class) or an instance of Parameters. If not specified, will use default parameters.
-
-#         """
-#         super().__init__(nodes, links, shapes)
-
-#         # will have to change if want to alter them
-#         if type(parameters) is dict:
-#             self.parameters = Parameters(**parameters)
-#         elif isinstance(parameters, Parameters):
-#             # self.parameters = Parameters(**parameters.__dict__)
-#             self.parameters = parameters
-#         else:
-#             msg = "Parameters should be a dict or instance of Parameters: found {} which is of type:{}".format(
-#                 parameters, type(parameters)
-#             )
-#             WranglerLogger.error(msg)
-#             raise ValueError(msg)
-
-#     @staticmethod
-#     def read(
-#         link_file: str,
-#         node_file: str,
-#         shape_file: str,
-#         fast: bool = False,
-#         recalculate_calculated_variables=False,
-#         parameters: Union[dict, Parameters] = {},
-#     ):
-#         """
-#         Reads in links and nodes network standard.
-
-#         Args:
-#             link_file (str): File path to link json.
-#             node_file (str): File path to node geojson.
-#             shape_file (str): File path to link true shape geojson
-#             fast (bool): boolean that will skip validation to speed up read time.
-#             recalculate_calculated_variables (bool): calculates fields from spatial joins, etc.
-#             recalculate_distance (bool):  re-calculates distance.
-#             parameters: dictionary of parameter settings (see Parameters class) or an instance of Parameters. If not specified, will use default parameters.
-
-#         Returns:
-#             ModelRoadwayNetwork
-#         """
-#         # road_net =  super().read(link_file, node_file, shape_file, fast=fast)
-#         road_net = RoadwayNetwork.read(link_file, node_file, shape_file, fast=fast)
-
-#         m_road_net = ModelRoadwayNetwork(
-#             road_net.nodes_df,
-#             road_net.links_df,
-#             road_net.shapes_df,
-#             parameters=parameters,
-#         )
-
-#         if recalculate_calculated_variables:
-#             m_road_net.create_calculated_variables()
-
-#         return m_road_net
-
-#     @staticmethod
-#     def from_RoadwayNetwork(
-#         roadway_network_object, parameters: Union[dict, Parameters] = {}
-#     ):
-#         """
-#         RoadwayNetwork to ModelRoadwayNetwork
-
-#         Args:
-#             roadway_network_object (RoadwayNetwork).
-#             parameters: dictionary of parameter settings (see Parameters class) or an instance of Parameters. If not specified, will use default parameters.
-
-#         Returns:
-#             ModelRoadwayNetwork
-#         """
-#         return ModelRoadwayNetwork(
-#             roadway_network_object.nodes_df,
-#             roadway_network_object.links_df,
-#             roadway_network_object.shapes_df,
-#             parameters=parameters,
-#         )
-
-
 def split_properties_by_time_period_and_category(
     roadway_net=None, parameters=None, properties_to_split=None
 ):
@@ -190,17 +90,6 @@ def split_properties_by_time_period_and_category(
     roadway_net.links_df.attrs = link_attrs
 
     return roadway_net
-
-
-# def create_calculated_variables(self):
-#     """
-#     Creates calculated roadway variables.
-
-#     Args:
-#         None
-#     """
-#     WranglerLogger.info("Creating calculated roadway variables.")
-#     self.calculate_distance_miles(overwrite=True)
 
 
 def calculate_distance_miles(
