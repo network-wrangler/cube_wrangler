@@ -11,55 +11,39 @@ on:
 jobs:
   build:
 
+    defaults:
+      run:
+        shell: bash -l {0}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7"]
+        python-version: ["3.10"]
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          path: 'cube_wrangler'
-      - name: Set up Miniforge
-        uses: conda-incubator/setup-miniconda@v2
+          version: "0.7.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
         with:
-          miniforge-variant: Mambaforge
-          activate-environment: test-environment
-          use-mamba: true
-          python-version: ${{ matrix.python-version }}
-          auto-activate-base: false
-      # You can test your matrix by printing the current Python version
-      - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
-      - name: Install dependencies
+          python-version-file: ".python-version"
+      
+      - name: Install cube wrangler
         run: |
-          mamba env update -n test-environment -f cube_wrangler/conda-environments/environment.yml
-      # install network wrangler from github repo
-      - name: Install network wrangler
-        run: |
-          # clone the network wrangler repo
-          git clone https://github.com/wsp-sag/network_wrangler.git
-          cd network_wrangler
-          git checkout develop_with_ranch
-          
-          pip install .
-          cd ..
-      - name: Install Cube Wrangler
-        run: |
-          cd cube_wrangler
-          pip install .
-          cd ..
-      - name: Verify network wrangler installation
-        run: |
-          python -c "import network_wrangler; print(network_wrangler.__version__)"
-      # - name: Verify cube wrangler installation
-      #   run: |
-      #     python -c "import cube_wrangler; print(cube_wrangler.__version__)"
+          uv sync --locked --only-group dev
+
       - name: Lint with Black
         run: |
           # stop the build if there are problems
-          black --check --diff --exclude "/.*network_wrangler.*/" .
+          uv run black --check --diff .
+
       - name: Test cube_wrangler.tests
         run: |
           cd cube_wrangler/tests
-          python -m pytest .
+          uv run python -m pytest .

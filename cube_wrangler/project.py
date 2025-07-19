@@ -10,7 +10,6 @@ import pandas as pd
 from pandas import DataFrame
 import geopandas as gpd
 
-# from network_wrangler import ProjectCard
 from projectcard import ProjectCard, write_card
 from network_wrangler.roadway.network import RoadwayNetwork
 from network_wrangler import load_roadway
@@ -163,8 +162,6 @@ class Project(object):
         recalculate_calculated_variables: Optional[bool] = False,
         recalculate_distance: Optional[bool] = False,
         parameters: Optional[dict] = {},
-        # transit_shape_crosswalk_file: Optional[str] = None,
-        # model_shape_id_column: Optional[str] = "model_shape_id",
     ):
         """
         Constructor for a Project instance.
@@ -192,50 +189,10 @@ class Project(object):
             A Project instance.
         """
 
-        # if transit_shape_crosswalk_file:
-        #     WranglerLogger.info(
-        #         "Reading transit shape crosswalk file: {}".format(
-        #             transit_shape_crosswalk_file
-        #         )
-        #     )
-        #     transit_shape_crosswalk_df = pd.read_csv(transit_shape_crosswalk_file)
-        #     WranglerLogger.info(
-        #         "Will convert model shape id {} to standard shape_id".format(
-        #             model_shape_id_column
-        #         )
-        #     )
-
-        #     assert "shape_id" in transit_shape_crosswalk_df.columns, "shape_id not found in transit shape crosswalk file"
-        #     assert model_shape_id_column in transit_shape_crosswalk_df.columns, "model shape id {} not found in transit shape crosswalk file".format(model_shape_id_column)
-
-        #     transit_shape_crosswalk_dict = dict(
-        #         zip(
-        #             transit_shape_crosswalk_df[model_shape_id_column].astype(str),
-        #             transit_shape_crosswalk_df["shape_id"].astype(str)
-        #         )
-        #     )
-        # else:
-        #     transit_shape_crosswalk_dict = None
-
         if base_transit_source and base_transit_network:
             msg = "Method takes only one of 'base_transit_source' and 'base_transit_network' but both given"
             WranglerLogger.error(msg)
             raise ValueError(msg)
-        # if base_transit_source:
-        #     base_transit_network = CubeTransit.create_from_cube(
-        #         base_transit_source,
-        #         parameters,
-        #         transit_shape_crosswalk_dict,
-        #     )
-        #     WranglerLogger.debug(
-        #         "Base network has {} lines".format(len(base_transit_network.lines))
-        #     )
-        #     if len(base_transit_network.lines) <= 10:
-        #         WranglerLogger.debug(
-        #             "Base network lines: {}".format(
-        #                 "\n - ".join(base_transit_network.lines)
-        #             )
-        #         )
         elif base_transit_network:
             pass
         else:
@@ -247,22 +204,6 @@ class Project(object):
             msg = "Method takes only one of 'build_transit_source' and 'transit_changes' but both given"
             WranglerLogger.error(msg)
             raise ValueError(msg)
-        # if build_transit_source:
-        #     WranglerLogger.debug("build")
-        #     build_transit_network = CubeTransit.create_from_cube(
-        #         build_transit_source,
-        #         parameters,
-        #         transit_shape_crosswalk_dict,
-        #     )
-        #     WranglerLogger.debug(
-        #         "Build network has {} lines".format(len(build_transit_network.lines))
-        #     )
-        #     if len(build_transit_network.lines) <= 10:
-        #         WranglerLogger.debug(
-        #             "Build network lines: {}".format(
-        #                 "\n - ".join(build_transit_network.lines)
-        #             )
-        #         )
         elif transit_changes:
             pass
         else:
@@ -329,29 +270,14 @@ class Project(object):
             base_roadway_network = load_roadway(
                 links_file=os.path.join(base_roadway_dir, "link.json"),
                 nodes_file=os.path.join(base_roadway_dir, "node.geojson"),
-                shapes_file=os.path.join(base_roadway_dir, "shape.geojson")
+                shapes_file=os.path.join(base_roadway_dir, "shape.geojson"),
             )
-            # base_roadway_network = ModelRoadwayNetwork.read(
-            #     os.path.join(base_roadway_dir, "link.json"),
-            #     os.path.join(base_roadway_dir, "node.geojson"),
-            #     os.path.join(base_roadway_dir, "shape.geojson"),
-            #     fast=True,
-            #     recalculate_calculated_variables=recalculate_calculated_variables,
-            #     recalculate_distance=recalculate_distance,
-            #     parameters=parameters,
-            # )
             base_roadway_network = split_properties_by_time_period_and_category(
-                roadway_net=base_roadway_network, 
-                parameters=parameters
+                roadway_net=base_roadway_network, parameters=parameters
             )
         elif base_roadway_network:
-            # if not isinstance(base_roadway_network, ModelRoadwayNetwork):
-            #     base_roadway_network = ModelRoadwayNetwork.from_RoadwayNetwork(
-            #         roadway_network_object=base_roadway_network, parameters=parameters
-            #     )
             base_roadway_network = split_properties_by_time_period_and_category(
-                roadway_net=base_roadway_network, 
-                parameters=parameters
+                roadway_net=base_roadway_network, parameters=parameters
             )
         else:
             msg = "No base roadway network."
@@ -367,7 +293,6 @@ class Project(object):
             evaluate=True,
             project_name=project_name,
             parameters=parameters,
-            # transit_shape_crosswalk_dict=transit_shape_crosswalk_dict,
         )
 
         return project
@@ -627,11 +552,8 @@ class Project(object):
             if len(cube_delete_df) > 0:
                 links_to_delete = cube_delete_df["model_link_id"].tolist()
                 delete_link_dict = {
-                    "roadway_deletion":{
-                        "links": {
-                            "model_link_id": links_to_delete, 
-                            "modes": ["any"]
-                        }
+                    "roadway_deletion": {
+                        "links": {"model_link_id": links_to_delete, "modes": ["any"]}
                     },
                 }
                 WranglerLogger.debug("{} Links Deleted.".format(len(links_to_delete)))
@@ -752,11 +674,9 @@ class Project(object):
 
             add_link_properties = cube_add_df[add_col_final].to_dict("records")
 
-            updated_add_link_dict = {"roadway_addition":{"links":[]}}
+            updated_add_link_dict = {"roadway_addition": {"links": []}}
             for link_dict in add_link_properties:
-                updated_add_link_dict["roadway_addition"]["links"].append(
-                    link_dict
-                ) 
+                updated_add_link_dict["roadway_addition"]["links"].append(link_dict)
 
             # WranglerLogger.debug("Add Link Properties: {}".format(add_link_properties))
             WranglerLogger.debug("{} Links Added".format(len(add_link_properties)))
@@ -1020,14 +940,13 @@ class Project(object):
             updated_change_link_dict_list = []
             for link_dict in change_link_dict_list:
                 updated_properties = {
-                    item.pop("property"): item
-                    for item in link_dict["properties"]
+                    item.pop("property"): item for item in link_dict["properties"]
                 }
                 link_dict["facility"]["links"].update({"modes": ["any"]})
                 updated_link_dict = {
-                    "roadway_property_change":{
+                    "roadway_property_change": {
                         "property_changes": updated_properties,
-                        "facility": link_dict["facility"]
+                        "facility": link_dict["facility"],
                     }
                 }
                 updated_change_link_dict_list.append(updated_link_dict)
@@ -1131,7 +1050,7 @@ class Project(object):
             else:
                 add_link_dict.append(
                     {
-                        "roadway_addition":{
+                        "roadway_addition": {
                             "nodes": _process_node_additions(node_add_df),
                         },
                     }

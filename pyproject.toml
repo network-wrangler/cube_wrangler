@@ -1,11 +1,55 @@
+[build-system]
+requires = [
+    "setuptools>=69",
+    "wheel",
+    "setuptools_scm>=8.0",
+]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "cube-wrangler"
 version = "0.1.0"
-description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "geopandas>=1.1.1",
     "lark>=1.2.2",
+    "network-wrangler>=1.0b3",
+    "numpy>=2.2.6",
+    "pandas>=2.3.1",
     "partridge>=1.1.2",
+    "projectcard>=0.3.3",
     "unidecode>=1.4.0",
 ]
+
+[dependency-groups]
+dev = [
+    "black",
+    "pytest",
+]
+doc = [
+    "black",
+    "json5",
+    "jsonschema",
+    "Markdown",
+    "markdown-it-py",
+    "mike",
+    "mkdocs",
+    "mkdocs-autorefs",
+    "mkdocs-awesome-pages-plugin",
+    "mkdocs-jupyter",
+    "mkdocs-material",
+    "mkdocs-material-extensions",
+    "mkdocstrings",
+    "mkdocstrings-python",
+    "mkdocs-table-reader-plugin",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true

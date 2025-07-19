@@ -4,30 +4,38 @@ on:
 
 jobs:
   build:
+    defaults:
+      run:
+        shell: bash -l {0}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.9]
+        python-version: ["3.10"]
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Document branch deleting
-      run: echo ${{ github.ref_name }}
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install mike
-      run: |
-        python -m pip install --upgrade pip
-        pip install mike
-    - name: Configure Git user
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-    - name: Delete defunct docs versions
-      run: |
-        echo "Deleting ${{ github.event.ref_name }} version from docs"
-        mike delete --push ${{ github.event.ref_name }}
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.7.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+      
+      - name: Install cube wrangler
+        run: |
+          uv sync --locked --only-group doc
+        
+      - name: Configure Git user
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+      - name: Delete defunct docs versions
+        run: |
+          echo "Deleting ${{ github.event.ref_name }} version from docs"
+          uv run mike delete --push ${{ github.event.ref_name }}

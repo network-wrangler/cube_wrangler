@@ -2,8 +2,7 @@ import os
 
 import pytest
 
-from cube_wrangler.roadway import Parameters, ModelRoadwayNetwork
-from network_wrangler import RoadwayNetwork
+from cube_wrangler.roadway import Parameters
 
 STPAUL_DIR = os.path.join(os.getcwd(), "data")
 
@@ -13,7 +12,6 @@ STPAUL_NODE_FILE = os.path.join(STPAUL_DIR, "st_paul_node.geojson")
 
 
 @pytest.mark.roadway
-@pytest.mark.travis
 def test_parameter_read(request):
     """
     Tests that parameters are read
@@ -26,19 +24,9 @@ def test_parameter_read(request):
 
 
 @pytest.mark.roadway
-@pytest.mark.travis
+@pytest.mark.skip(reason="This feature is moved.")
 def test_network_calculate_variables(request):
     """
     Tests that parameters are read
     """
     print("\n--Starting:", request.node.name)
-
-    net = ModelRoadwayNetwork.read(
-        link_file=STPAUL_LINK_FILE,
-        node_file=STPAUL_NODE_FILE,
-        shape_file=STPAUL_SHAPE_FILE,
-        fast=True,
-    )
-
-    assert isinstance(net, ModelRoadwayNetwork)
-    assert len(net.links_df) == 58821

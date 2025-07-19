@@ -1,13 +1,14 @@
 """Transit-related classes to parse, compare, and write standard and cube transit files.
 
-  Typical usage example:
+Typical usage example:
 
-    tn = CubeTransit.create_from_cube(CUBE_DIR)
-    transit_change_list = tn.evaluate_differences(base_transit_network)
+  tn = CubeTransit.create_from_cube(CUBE_DIR)
+  transit_change_list = tn.evaluate_differences(base_transit_network)
 
-    cube_transit_net = StandardTransit.read_gtfs(BASE_TRANSIT_DIR)
-    cube_transit_net.write_as_cube_lin(os.path.join(WRITE_DIR, "outfile.lin"))
+  cube_transit_net = StandardTransit.read_gtfs(BASE_TRANSIT_DIR)
+  cube_transit_net.write_as_cube_lin(os.path.join(WRITE_DIR, "outfile.lin"))
 """
+
 import os
 import copy
 import csv
