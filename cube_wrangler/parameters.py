@@ -182,7 +182,7 @@ class Parameters:
             "bike_facility",
             "bike",
             "walk",
-        ]        
+        ]
 
         self.output_link_shp = os.path.join(self.scratch_location, "links.shp")
         self.output_node_shp = os.path.join(self.scratch_location, "nodes.shp")
