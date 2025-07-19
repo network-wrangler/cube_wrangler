@@ -114,7 +114,10 @@ from .logger import WranglerLogger
 #             parameters=parameters,
 #         )
 
-def split_properties_by_time_period_and_category(roadway_net=None, parameters=None, properties_to_split=None):
+
+def split_properties_by_time_period_and_category(
+    roadway_net=None, parameters=None, properties_to_split=None
+):
     """
     Splits properties by time period, assuming a variable structure of
 
@@ -168,12 +171,12 @@ def split_properties_by_time_period_and_category(roadway_net=None, parameters=No
                     params["v"],
                     category=params["categories"][category_suffix],
                     timespan=params["time_periods"][time_suffix],
-                )[params["v"]]
+                )[
+                    params["v"]
+                ]
         elif params.get("time_periods"):
             for time_suffix in params["time_periods"]:
-                roadway_net.links_df[
-                    out_var + "_" + time_suffix
-                ] = prop_for_scope(
+                roadway_net.links_df[out_var + "_" + time_suffix] = prop_for_scope(
                     roadway_net.links_df,
                     params["v"],
                     category=None,
@@ -187,7 +190,8 @@ def split_properties_by_time_period_and_category(roadway_net=None, parameters=No
     roadway_net.links_df.attrs = link_attrs
 
     return roadway_net
-    
+
+
 # def create_calculated_variables(self):
 #     """
 #     Creates calculated roadway variables.
@@ -198,7 +202,10 @@ def split_properties_by_time_period_and_category(roadway_net=None, parameters=No
 #     WranglerLogger.info("Creating calculated roadway variables.")
 #     self.calculate_distance_miles(overwrite=True)
 
-def calculate_distance_miles(roadway_net=None, network_variable="distance", overwrite=False):
+
+def calculate_distance_miles(
+    roadway_net=None, network_variable="distance", overwrite=False
+):
     """
     calculate link distance in miles
 
@@ -251,8 +258,12 @@ def calculate_distance_miles(roadway_net=None, network_variable="distance", over
 
     return roadway_net
 
+
 def calculate_distance(
-    roadway_net=None, network_variable="distance", centroidconnect_only=False, overwrite=False
+    roadway_net=None,
+    network_variable="distance",
+    centroidconnect_only=False,
+    overwrite=False,
 ):
     """
     calculate link distance in miles
@@ -317,14 +328,15 @@ def calculate_distance(
         )
         temp_links_gdf[network_variable] = temp_links_gdf.geometry.length / 1609.34
         # overwrite 0 distance with 0.001 mile
-        temp_links_gdf.loc[
-            temp_links_gdf[network_variable] == 0, network_variable
-        ] = 0.001
+        temp_links_gdf.loc[temp_links_gdf[network_variable] == 0, network_variable] = (
+            0.001
+        )
 
     roadway_net.links_df[network_variable] = temp_links_gdf[network_variable]
     roadway_net.links_df.attrs = link_attrs
 
     return roadway_net
+
 
 def create_ML_variable(
     roadway_net=None,
@@ -370,6 +382,7 @@ def create_ML_variable(
     roadway_net.links_df.attrs = link_attrs
 
     return roadway_net
+
 
 def create_hov_corridor_variable(
     roadway_net=None,
@@ -417,6 +430,7 @@ def create_hov_corridor_variable(
 
     return roadway_net
 
+
 def create_managed_variable(
     roadway_net=None,
     network_variable="managed",
@@ -463,6 +477,7 @@ def create_managed_variable(
 
     return roadway_net
 
+
 def add_variable_using_shst_reference(
     roadway_net=None,
     var_shst_csvdata=None,
@@ -505,9 +520,7 @@ def add_variable_using_shst_reference(
         raise ValueError(msg)
 
     if shst_csv_variable not in var_shst_df.columns:
-        msg = "{} required but not found in {}".format(
-            shst_csv_variable, var_shst_data
-        )
+        msg = "{} required but not found in {}".format(shst_csv_variable, var_shst_data)
         WranglerLogger.error(msg)
         raise ValueError(msg)
 
@@ -534,7 +547,8 @@ def add_variable_using_shst_reference(
     # MN and WI counts are vehicles using the segment in both directions, no directional counts
     # we will make sure both direction has the same daily AADT
     dir_link_count_df = roadway_net.links_df[
-        (roadway_net.links_df[network_variable] > 0) & (roadway_net.links_df["drive_access"] == True)
+        (roadway_net.links_df[network_variable] > 0)
+        & (roadway_net.links_df["drive_access"] == True)
     ][["A", "B", network_variable]].copy()
     reverse_dir_link_count_df = dir_link_count_df.rename(
         columns={"A": "B", "B": "A"}
@@ -560,6 +574,7 @@ def add_variable_using_shst_reference(
     roadway_net.links_df.attrs = link_attrs
 
     return roadway_net
+
 
 def convert_int(roadway_net=None, parameters=None, int_col_names=[]):
     """
@@ -606,6 +621,7 @@ def convert_int(roadway_net=None, parameters=None, int_col_names=[]):
     roadway_net.nodes_df.attrs = node_attrs
 
     return roadway_net
+
 
 def convert_bool(roadway_net=None, parameters=None, bool_col_names=[]):
     """
@@ -682,6 +698,7 @@ def fill_na(roadway_net=None, parameters=None):
 
     return roadway_net
 
+
 def rename_variables_for_dbf(
     input_df=None,
     parameters=None,
@@ -709,9 +726,7 @@ def rename_variables_for_dbf(
     """
 
     variable_crosswalk = (
-        variable_crosswalk
-        if variable_crosswalk
-        else parameters.net_to_dbf_crosswalk
+        variable_crosswalk if variable_crosswalk else parameters.net_to_dbf_crosswalk
     )
 
     output_variables = (
@@ -753,6 +768,7 @@ def rename_variables_for_dbf(
 
     return dbf_df[dbf_name_list]
 
+
 def write_roadway_as_shp(
     roadway_net=None,
     parameters=None,
@@ -786,9 +802,7 @@ def write_roadway_as_shp(
 
     WranglerLogger.info("Writing Network as Shapefile")
     WranglerLogger.debug(
-        "Output Variables: \n - {}".format(
-            "\n - ".join(parameters.output_variables)
-        )
+        "Output Variables: \n - {}".format("\n - ".join(parameters.output_variables))
     )
 
     """
@@ -810,9 +824,7 @@ def write_roadway_as_shp(
         link_output_variables
         if link_output_variables
         else [
-            c
-            for c in roadway_net.links_df.columns
-            if c in parameters.output_variables
+            c for c in roadway_net.links_df.columns if c in parameters.output_variables
         ]
     )
 
@@ -820,9 +832,7 @@ def write_roadway_as_shp(
         node_output_variables
         if node_output_variables
         else [
-            c
-            for c in roadway_net.nodes_df.columns
-            if c in parameters.output_variables
+            c for c in roadway_net.nodes_df.columns if c in parameters.output_variables
         ]
     )
 
@@ -831,21 +841,13 @@ def write_roadway_as_shp(
         link_output_variables if data_to_dbf else ["A", "B", "shape_id", "geometry"]
     )
 
-    output_link_shp = (
-        output_link_shp if output_link_shp else parameters.output_link_shp
-    )
+    output_link_shp = output_link_shp if output_link_shp else parameters.output_link_shp
 
-    output_node_shp = (
-        output_node_shp if output_node_shp else parameters.output_node_shp
-    )
+    output_node_shp = output_node_shp if output_node_shp else parameters.output_node_shp
 
-    output_link_csv = (
-        output_link_csv if output_link_csv else parameters.output_link_csv
-    )
+    output_link_csv = output_link_csv if output_link_csv else parameters.output_link_csv
 
-    output_node_csv = (
-        output_node_csv if output_node_csv else parameters.output_node_csv
-    )
+    output_node_csv = output_node_csv if output_node_csv else parameters.output_node_csv
 
     """
     Start Process
@@ -853,15 +855,15 @@ def write_roadway_as_shp(
 
     WranglerLogger.info("Renaming DBF Node Variables")
     nodes_dbf_df = rename_variables_for_dbf(
-        input_df = roadway_net.nodes_df, 
-        parameters = parameters,
-        output_variables=node_output_variables
+        input_df=roadway_net.nodes_df,
+        parameters=parameters,
+        output_variables=node_output_variables,
     )
     WranglerLogger.info("Renaming DBF Link Variables")
     links_dbf_df = rename_variables_for_dbf(
-        input_df = roadway_net.links_df,
-        parameters = parameters,
-        output_variables=dbf_link_output_variables
+        input_df=roadway_net.links_df,
+        parameters=parameters,
+        output_variables=dbf_link_output_variables,
     )
 
     links_dbf_df = gpd.GeoDataFrame(links_dbf_df, geometry=links_dbf_df["geometry"])
@@ -884,10 +886,11 @@ def write_roadway_as_shp(
         roadway_net.links_df[link_output_variables].to_csv(output_link_csv, index=False)
         roadway_net.nodes_df[node_output_variables].to_csv(output_node_csv, index=False)
 
+
 def write_roadway_as_fixedwidth(
     roadway_net=None,
     parameters=None,
-    zones: int=None,
+    zones: int = None,
     node_output_variables: list = None,
     link_output_variables: list = None,
     output_link_txt: str = None,
@@ -941,9 +944,7 @@ def write_roadway_as_fixedwidth(
         link_output_variables
         if link_output_variables
         else [
-            c
-            for c in parameters.output_variables
-            if c in roadway_net.links_df.columns
+            c for c in parameters.output_variables if c in roadway_net.links_df.columns
         ]
     )
 
@@ -951,19 +952,13 @@ def write_roadway_as_fixedwidth(
         node_output_variables
         if node_output_variables
         else [
-            c
-            for c in parameters.output_variables
-            if c in roadway_net.nodes_df.columns
+            c for c in parameters.output_variables if c in roadway_net.nodes_df.columns
         ]
     )
 
-    output_link_txt = (
-        output_link_txt if output_link_txt else parameters.output_link_txt
-    )
+    output_link_txt = output_link_txt if output_link_txt else parameters.output_link_txt
 
-    output_node_txt = (
-        output_node_txt if output_node_txt else parameters.output_node_txt
-    )
+    output_node_txt = output_node_txt if output_node_txt else parameters.output_node_txt
 
     output_link_header_width_txt = (
         output_link_header_width_txt
@@ -987,8 +982,12 @@ def write_roadway_as_fixedwidth(
     Start Process
     """
     # convert boolean columns to 1/0
-    bool_link_col = [col for col in parameters.bool_col if col in roadway_net.links_df.columns]
-    bool_node_col = [col for col in parameters.bool_col if col in roadway_net.nodes_df.columns]
+    bool_link_col = [
+        col for col in parameters.bool_col if col in roadway_net.links_df.columns
+    ]
+    bool_node_col = [
+        col for col in parameters.bool_col if col in roadway_net.nodes_df.columns
+    ]
 
     link_ff_df, link_max_width_dict = dataframe_to_fixed_width(
         roadway_net.links_df[link_output_variables], bool_link_col
@@ -1076,6 +1075,7 @@ def write_roadway_as_fixedwidth(
     with open(output_cube_network_script, "w") as f:
         f.write(s)
 
+
 # this should be moved to util
 # @staticmethod
 def dataframe_to_fixed_width(df, bool_col):
@@ -1111,6 +1111,7 @@ def dataframe_to_fixed_width(df, bool_col):
 
     return fw_df, max_width_dict
 
+
 # @staticmethod
 def read_match_result(path):
     """
@@ -1135,6 +1136,7 @@ def read_match_result(path):
         new = gpd.read_file(i)
         refId_gdf = pd.concat([refId_gdf, new], ignore_index=True, sort=False)
     return refId_gdf
+
 
 # @staticmethod
 def get_attribute(
@@ -1203,9 +1205,7 @@ def get_attribute(
         inplace=True,
     )
 
-    join_refId_df.drop_duplicates(
-        subset=["model_link_id"], keep="last", inplace=True
-    )
+    join_refId_df.drop_duplicates(subset=["model_link_id"], keep="last", inplace=True)
 
     # self.links_df[field_name] = join_refId_df[field_name]
 

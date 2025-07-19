@@ -328,7 +328,7 @@ class Project(object):
             base_roadway_network = load_roadway(
                 links_file=os.path.join(base_roadway_dir, "link.json"),
                 nodes_file=os.path.join(base_roadway_dir, "node.geojson"),
-                shapes_file=os.path.join(base_roadway_dir, "shape.geojson")
+                shapes_file=os.path.join(base_roadway_dir, "shape.geojson"),
             )
             # base_roadway_network = ModelRoadwayNetwork.read(
             #     os.path.join(base_roadway_dir, "link.json"),
@@ -340,8 +340,7 @@ class Project(object):
             #     parameters=parameters,
             # )
             base_roadway_network = split_properties_by_time_period_and_category(
-                roadway_net=base_roadway_network, 
-                parameters=parameters
+                roadway_net=base_roadway_network, parameters=parameters
             )
         elif base_roadway_network:
             # if not isinstance(base_roadway_network, ModelRoadwayNetwork):
@@ -349,8 +348,7 @@ class Project(object):
             #         roadway_network_object=base_roadway_network, parameters=parameters
             #     )
             base_roadway_network = split_properties_by_time_period_and_category(
-                roadway_net=base_roadway_network, 
-                parameters=parameters
+                roadway_net=base_roadway_network, parameters=parameters
             )
         else:
             msg = "No base roadway network."
@@ -616,11 +614,8 @@ class Project(object):
             if len(cube_delete_df) > 0:
                 links_to_delete = cube_delete_df["model_link_id"].tolist()
                 delete_link_dict = {
-                    "roadway_deletion":{
-                        "links": {
-                            "model_link_id": links_to_delete, 
-                            "modes": ["any"]
-                        }
+                    "roadway_deletion": {
+                        "links": {"model_link_id": links_to_delete, "modes": ["any"]}
                     },
                 }
                 WranglerLogger.debug("{} Links Deleted.".format(len(links_to_delete)))
@@ -706,11 +701,9 @@ class Project(object):
 
             add_link_properties = cube_add_df[add_col_final].to_dict("records")
 
-            updated_add_link_dict = {"roadway_addition":{"links":[]}}
+            updated_add_link_dict = {"roadway_addition": {"links": []}}
             for link_dict in add_link_properties:
-                updated_add_link_dict["roadway_addition"]["links"].append(
-                    link_dict
-                ) 
+                updated_add_link_dict["roadway_addition"]["links"].append(link_dict)
 
             # WranglerLogger.debug("Add Link Properties: {}".format(add_link_properties))
             WranglerLogger.debug("{} Links Added".format(len(add_link_properties)))
@@ -972,14 +965,13 @@ class Project(object):
             updated_change_link_dict_list = []
             for link_dict in change_link_dict_list:
                 updated_properties = {
-                    item.pop("property"): item
-                    for item in link_dict["properties"]
+                    item.pop("property"): item for item in link_dict["properties"]
                 }
                 link_dict["facility"]["links"].update({"modes": ["any"]})
                 updated_link_dict = {
-                    "roadway_property_change":{
+                    "roadway_property_change": {
                         "property_changes": updated_properties,
-                        "facility": link_dict["facility"]
+                        "facility": link_dict["facility"],
                     }
                 }
                 updated_change_link_dict_list.append(updated_link_dict)
@@ -1083,7 +1075,7 @@ class Project(object):
             else:
                 add_link_dict.append(
                     {
-                        "roadway_addition":{
+                        "roadway_addition": {
                             "nodes": _process_node_additions(node_add_df),
                         },
                     }
