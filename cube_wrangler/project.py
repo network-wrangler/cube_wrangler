@@ -188,7 +188,6 @@ class Project(object):
             A Project instance.
         """
 
-
         if base_transit_source and base_transit_network:
             msg = "Method takes only one of 'base_transit_source' and 'base_transit_network' but both given"
             WranglerLogger.error(msg)
