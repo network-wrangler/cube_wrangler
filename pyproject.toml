@@ -24,6 +24,7 @@ dependencies = [
 
 [dependency-groups]
 doc = [
+    "black",
     "json5",
     "jsonschema",
     "Markdown",
