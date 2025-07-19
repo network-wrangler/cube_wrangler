@@ -36,7 +36,7 @@ jobs:
       
       - name: Install cube wrangler
         run: |
-          uv sync --locked
+          uv sync --locked --only-group dev
 
       - name: Lint with Black
         run: |

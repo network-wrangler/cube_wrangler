@@ -23,6 +23,10 @@ dependencies = [
 ]
 
 [dependency-groups]
+dev = [
+    "black",
+    "pytest",
+]
 doc = [
     "black",
     "json5",
@@ -42,7 +46,7 @@ doc = [
 ]
 
 [tool.uv]
-default-groups = ["doc"]
+default-groups = ["dev"]
 
 [[tool.uv.index]]
 name = "testpypi"

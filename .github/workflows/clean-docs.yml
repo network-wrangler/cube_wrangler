@@ -29,7 +29,7 @@ jobs:
       
       - name: Install cube wrangler
         run: |
-          uv sync --locked
+          uv sync --locked --only-group doc
         
       - name: Configure Git user
         run: |
