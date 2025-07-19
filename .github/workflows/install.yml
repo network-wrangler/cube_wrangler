@@ -46,4 +46,4 @@ jobs:
       - name: Test cube_wrangler.tests
         run: |
           cd cube_wrangler/tests
-          python -m pytest .
+          uv run python -m pytest .
