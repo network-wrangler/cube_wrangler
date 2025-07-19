@@ -896,6 +896,22 @@ def write_roadway_as_fixedwidth(
     )
     link_max_width_df.to_csv(output_link_header_width_txt, index=False)
 
+    # make sure model_node_id is renamed to N for CUBE
+    if ("model_node_id" in roadway_net.nodes_df.columns) & (
+        "N" not in roadway_net.nodes_df.columns
+    ):
+        WranglerLogger.info("Renaming model_node_id to N for fixed width conversion")
+        roadway_net.nodes_df = roadway_net.nodes_df.rename(
+            columns={"model_node_id": "N"}
+        )
+        # remove model_node_id from node_output_variables
+        if "model_node_id" in node_output_variables:
+            node_output_variables.remove("model_node_id")
+
+    # make sure N is in the node output variables for CUBE
+    if "N" not in node_output_variables:
+        node_output_variables.append("N")
+
     node_ff_df, node_max_width_dict = dataframe_to_fixed_width(
         roadway_net.nodes_df[node_output_variables], bool_node_col
     )
@@ -957,8 +973,16 @@ def write_roadway_as_fixedwidth(
     s += "\n"
     s += 'FILEO NETO = "complete_network.net" \n\n'
     s += "ZONES = {} \n\n".format(zones)
-    s += "ROADWAY = LTRIM(TRIM(ROADWAY)) \n"
-    s += "NAME = LTRIM(TRIM(NAME)) \n"
+    # trim whitespace from string columns
+    for col in parameters.string_col:
+        if col in link_max_width_dict:
+            s += "{} = LTRIM(TRIM({})) \n".format(col, col)
+        if col in node_max_width_dict:
+            s += "{} = LTRIM(TRIM({})) \n".format(col, col)
+    if "ROADWAY" in link_max_width_dict:
+        s += "ROADWAY = LTRIM(TRIM(ROADWAY)) \n"
+    if "NAME" in link_max_width_dict:
+        s += "NAME = LTRIM(TRIM(NAME)) \n"
     s += "\n \nENDRUN"
 
     with open(output_cube_network_script, "w") as f:
@@ -982,16 +1006,27 @@ def dataframe_to_fixed_width(df, bool_col):
     WranglerLogger.info("Starting fixed width conversion")
 
     # get the max length for each variable column
-    max_width_dict = dict(
-        [
-            (v, df[v].apply(lambda r: len(str(r)) if r != None else 0).max())
-            for v in df.columns.values
-            if v != "geometry"
-        ]
-    )
+    max_width_dict = {
+        col: df[col].dropna().astype(str).str.len().max()
+        for col in df.columns
+        if col != "geometry"
+    }
 
-    fw_df = df.drop("geometry", axis=1).copy()
-    fw_df[bool_col] = fw_df[bool_col].astype(int)
+    # CUBE does not like column LEN=0, so we set them to 1
+    for col in max_width_dict:
+        if max_width_dict[col] == 0:
+            max_width_dict[col] = 1
+
+    fw_df = df.copy()
+    if "geometry" in df.columns:
+        fw_df = fw_df.drop("geometry", axis=1)
+    for col in bool_col:
+        if col in fw_df.columns:
+            fw_df[col] = fw_df[col].astype(int)
+        else:
+            WranglerLogger.debug(
+                f"Boolean column {col} not found in output fixed width DataFrame."
+            )
 
     for c in fw_df.columns:
         fw_df[c] = fw_df[c].apply(lambda x: str(x))

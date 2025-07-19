@@ -4,6 +4,7 @@ import re
 from typing import Any, Dict, Optional, Union, List
 from csv import reader
 import numpy as np
+import numbers
 
 import pandas as pd
 from pandas import DataFrame
@@ -538,6 +539,16 @@ class Project(object):
             WranglerLogger.debug("Processing link deletions")
 
             cube_delete_df = link_changes_df[link_changes_df.OPERATION_final == "D"]
+
+            # if "model_link_id" is not in cube log file
+            # we need to get it using the A and B columns
+            if "model_link_id" not in cube_delete_df.columns:
+                cube_delete_df = pd.merge(
+                    cube_delete_df,
+                    self.base_roadway_network.links_df[["A", "B", "model_link_id"]],
+                    on=["A", "B"],
+                    how="left",
+                )
             if len(cube_delete_df) > 0:
                 links_to_delete = cube_delete_df["model_link_id"].tolist()
                 delete_link_dict = {
@@ -561,6 +572,43 @@ class Project(object):
             if len(cube_add_df) == 0:
                 WranglerLogger.debug("No link additions processed")
                 return {}
+
+            # The following section of code is to ensure that
+            # the cube_add_df has all the required columns
+            # that are expected in the standard project card schema,
+            # even when the base network and log files are missing them
+            # so that we can still create a project card for a network
+            # that is not using the Network Wrangler standard schema.
+            # users can set such parameters in their implementation.
+            if "no_model_link_id_in_cube" in self.parameters.__dict__.keys():
+                if self.parameters.no_model_link_id_in_cube:
+                    cube_add_df["model_link_id"] = range(
+                        self.base_roadway_network.links_df.model_link_id.max() + 1,
+                        self.base_roadway_network.links_df.model_link_id.max()
+                        + 1
+                        + len(cube_add_df),
+                    )
+
+            if "no_lanes_in_cube" in self.parameters.__dict__.keys():
+                if self.parameters.no_lanes_in_cube:
+                    cube_add_df["lanes"] = 0
+
+            if "no_drive_access_in_cube" in self.parameters.__dict__.keys():
+                if self.parameters.no_drive_access_in_cube:
+                    cube_add_df["drive_access"] = 1
+
+            if "no_walk_access_in_cube" in self.parameters.__dict__.keys():
+                if self.parameters.no_walk_access_in_cube:
+                    cube_add_df["walk_access"] = 1
+
+            if "no_bike_access_in_cube" in self.parameters.__dict__.keys():
+                if self.parameters.no_bike_access_in_cube:
+                    cube_add_df["bike_access"] = 1
+
+            if "no_name_in_cube" in self.parameters.__dict__.keys():
+                if self.parameters.no_name_in_cube:
+                    cube_add_df["name"] = "unknown"
+            # end of section to ensure required columns
 
             if limit_variables_to_existing_network:
                 add_col = [
@@ -768,17 +816,19 @@ class Project(object):
                 # make the type of set value consistent with the base value
                 set_value = change_row[c]
                 if base_row[c] is not None:
-                    if isinstance(base_row[c], int):
+                    if isinstance(base_row[c], numbers.Integral):
                         set_value = int(set_value)
-                    elif isinstance(base_row[c], float):
+                        exist_value = int(base_row[c])
+                    elif isinstance(base_row[c], numbers.Real):
                         set_value = float(set_value)
+                        exist_value = float(base_row[c])
                     else:
-                        None
+                        exist_value = base_row[c]
                     if isinstance(base_row[c], bool):
                         set_value = bool(int(set_value))
 
                 _d = {
-                    "existing": base_row[c],
+                    "existing": exist_value,
                     "set": set_value,
                 }
                 if c in Project.CALCULATED_VALUES:
