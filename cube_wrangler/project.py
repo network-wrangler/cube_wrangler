@@ -547,7 +547,7 @@ class Project(object):
                     cube_delete_df,
                     self.base_roadway_network.links_df[["A", "B", "model_link_id"]],
                     on=["A", "B"],
-                    how="left"
+                    how="left",
                 )
             if len(cube_delete_df) > 0:
                 links_to_delete = cube_delete_df["model_link_id"].tolist()
@@ -572,33 +572,35 @@ class Project(object):
             if len(cube_add_df) == 0:
                 WranglerLogger.debug("No link additions processed")
                 return {}
-            
-            # The following section of code is to ensure that 
+
+            # The following section of code is to ensure that
             # the cube_add_df has all the required columns
-            # that are expected in the standard project card schema, 
+            # that are expected in the standard project card schema,
             # even when the base network and log files are missing them
-            # so that we can still create a project card for a network 
+            # so that we can still create a project card for a network
             # that is not using the Network Wrangler standard schema.
             # users can set such parameters in their implementation.
             if "no_model_link_id_in_cube" in self.parameters.__dict__.keys():
                 if self.parameters.no_model_link_id_in_cube:
                     cube_add_df["model_link_id"] = range(
                         self.base_roadway_network.links_df.model_link_id.max() + 1,
-                        self.base_roadway_network.links_df.model_link_id.max() + 1 + len(cube_add_df)
+                        self.base_roadway_network.links_df.model_link_id.max()
+                        + 1
+                        + len(cube_add_df),
                     )
-            
+
             if "no_lanes_in_cube" in self.parameters.__dict__.keys():
                 if self.parameters.no_lanes_in_cube:
                     cube_add_df["lanes"] = 0
-            
+
             if "no_drive_access_in_cube" in self.parameters.__dict__.keys():
                 if self.parameters.no_drive_access_in_cube:
                     cube_add_df["drive_access"] = 1
-            
+
             if "no_walk_access_in_cube" in self.parameters.__dict__.keys():
                 if self.parameters.no_walk_access_in_cube:
                     cube_add_df["walk_access"] = 1
-            
+
             if "no_bike_access_in_cube" in self.parameters.__dict__.keys():
                 if self.parameters.no_bike_access_in_cube:
                     cube_add_df["bike_access"] = 1

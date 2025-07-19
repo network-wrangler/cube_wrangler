@@ -897,13 +897,17 @@ def write_roadway_as_fixedwidth(
     link_max_width_df.to_csv(output_link_header_width_txt, index=False)
 
     # make sure model_node_id is renamed to N for CUBE
-    if ("model_node_id" in roadway_net.nodes_df.columns) & ("N" not in roadway_net.nodes_df.columns):
+    if ("model_node_id" in roadway_net.nodes_df.columns) & (
+        "N" not in roadway_net.nodes_df.columns
+    ):
         WranglerLogger.info("Renaming model_node_id to N for fixed width conversion")
-        roadway_net.nodes_df = roadway_net.nodes_df.rename(columns={"model_node_id": "N"})
+        roadway_net.nodes_df = roadway_net.nodes_df.rename(
+            columns={"model_node_id": "N"}
+        )
         # remove model_node_id from node_output_variables
         if "model_node_id" in node_output_variables:
             node_output_variables.remove("model_node_id")
-    
+
     # make sure N is in the node output variables for CUBE
     if "N" not in node_output_variables:
         node_output_variables.append("N")
@@ -1004,7 +1008,8 @@ def dataframe_to_fixed_width(df, bool_col):
     # get the max length for each variable column
     max_width_dict = {
         col: df[col].dropna().astype(str).str.len().max()
-        for col in df.columns if col != "geometry"
+        for col in df.columns
+        if col != "geometry"
     }
 
     # CUBE does not like column LEN=0, so we set them to 1
@@ -1019,7 +1024,9 @@ def dataframe_to_fixed_width(df, bool_col):
         if col in fw_df.columns:
             fw_df[col] = fw_df[col].astype(int)
         else:
-            WranglerLogger.debug(f"Boolean column {col} not found in output fixed width DataFrame.")
+            WranglerLogger.debug(
+                f"Boolean column {col} not found in output fixed width DataFrame."
+            )
 
     for c in fw_df.columns:
         fw_df[c] = fw_df[c].apply(lambda x: str(x))
