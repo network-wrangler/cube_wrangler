@@ -769,6 +769,7 @@ class Project(object):
                 if (col == "roadway_class") & (change_row[col] == 0):
                     continue
                 # only look at distance if it has significantly changed
+                # in case distance is upper case, convert it to lower case
                 if col.lower() == "distance":
                     if (
                         abs(
