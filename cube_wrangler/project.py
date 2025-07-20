@@ -769,7 +769,7 @@ class Project(object):
                 if (col == "roadway_class") & (change_row[col] == 0):
                     continue
                 # only look at distance if it has significantly changed
-                if col == "distance":
+                if col.lower() == "distance":
                     if (
                         abs(
                             (change_row[col] - float(base_row[col]))
