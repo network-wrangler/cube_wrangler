@@ -870,6 +870,14 @@ def write_roadway_as_fixedwidth(
     """
     Start Process
     """
+    # make sure nodes_df X and Y are in the model crs
+    # check if the nodes_df is in the output crs
+    if roadway_net.nodes_df.crs != parameters.output_epsg:
+        roadway_net.nodes_df = roadway_net.nodes_df.to_crs(parameters.output_epsg)
+        # convert geometry to X and Y
+        roadway_net.nodes_df["X"] = roadway_net.nodes_df.geometry.x
+        roadway_net.nodes_df["Y"] = roadway_net.nodes_df.geometry.y
+
     # convert boolean columns to 1/0
     bool_link_col = [
         col for col in parameters.bool_col if col in roadway_net.links_df.columns
