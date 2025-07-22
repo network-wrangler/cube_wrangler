@@ -33,10 +33,12 @@ jobs:
         run: |
           uv sync --group doc
 
-      - name: Configure Git user
+      - name: Build MkDocs site
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-      - name: Build docs
-        run: |
-          uv run mike deploy ${{ github.ref_name }} --push
+          uv run mkdocs build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
