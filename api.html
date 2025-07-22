@@ -8,11 +8,11 @@
       
       
       
-        <link rel="canonical" href="https://network-wrangler.github.io/cube_wrangler/index.html">
+        <link rel="canonical" href="https://network-wrangler.github.io/cube_wrangler/api.html">
       
       
+        <link rel="prev" href="index.html">
       
-        <link rel="next" href="api.html">
       
       
       <link rel="icon" href="assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>Cube Wrangler</title>
+        <title>API - Cube Wrangler</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#cube-wrangler" class="md-skip">
+        <a href="#application-programming-interface" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Home
+              API
             
           </span>
         </div>
@@ -223,10 +223,8 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
+    <li class="md-tabs__item">
       <a href="index.html" class="md-tabs__link">
         
   
@@ -244,8 +242,10 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
+  
+    <li class="md-tabs__item md-tabs__item--active">
       <a href="api.html" class="md-tabs__link">
         
   
@@ -310,6 +310,28 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -327,7 +349,7 @@
   
   
   <span class="md-ellipsis">
-    Home
+    API
     
   </span>
   
@@ -335,12 +357,12 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="index.html" class="md-nav__link md-nav__link--active">
+      <a href="api.html" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
-    Home
+    API
     
   </span>
   
@@ -363,9 +385,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#cube_wrangler.methods" class="md-nav__link">
     <span class="md-ellipsis">
-      Installation
+      methods
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cube_wrangler.methods.example_method" class="md-nav__link">
+    <span class="md-ellipsis">
+      example_method
     </span>
   </a>
   
@@ -375,28 +406,6 @@
   
 </nav>
       
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="api.html" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    API
-    
-  </span>
-  
-
-      </a>
     </li>
   
 
@@ -420,23 +429,72 @@
   
 
 
-<h1 id="cube-wrangler">Cube Wrangler<a class="headerlink" href="#cube-wrangler" title="Permanent link"> ¶</a></h1>
-<p>Welcome to Cube Wrangler. Cube Wrangler is a Python package that contains utilities for working with <a href="https://github.com/wsp-sag/network_wrangler">Network Wrangler</a>. <a href="https://www.bentley.com/software/cube/">Cube</a> is a commercial travel modeling software package. Cube Wrangler contains methods for carrying out the following common tasks:</p>
-<ul>
-<li>Creates a set of files than can be read in by a Cube script to create a Cube roadway network.</li>
-<li>Writes out a Network Wrangler transit network in Cube format.  </li>
-<li>Converts a Cube Log file, which is a record of roadway edits done in Cube, into a <a href="https://github.com/network-wrangler/projectcard">Project Card</a>.</li>
-<li>Converts two Cube <code>LIN</code> files, which are Cube&rsquo;s way of representing transit, into a Project Card. Note that Cube&rsquo;s log files do not record transit edits. Rather, Cube writes out an updated <code>LIN</code> file. Cube Wrangler assesses the differences in the <code>LIN</code> files and creates a Project Card that represents the edits.</li>
-</ul>
-<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link"> ¶</a></h2>
-<p>[NOT YET IMPLEMENTED]</p>
-<p>The Cube Wrangler package is available on PyPI. If you are managing multiple python versions, we suggest using <a href="https://virtualenv.pypa.io/en/latest/"><code>virtualenv</code></a> or <a href="https://conda.io/en/latest/"><code>conda</code></a> virtual environments. <code>conda</code> is the environment manager that is contained within both the Anaconda and mini-conda applications.</p>
-<p>An example installation using conda in the command line is as follows:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda<span class="w"> </span>config<span class="w"> </span>--add<span class="w"> </span>channels<span class="w"> </span>conda-forge
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>conda<span class="w"> </span>create<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.10<span class="w"> </span>-n<span class="w"> </span>your_environment_name
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>conda<span class="w"> </span>activate<span class="w"> </span>your_environment_name
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>pip<span class="w"> </span>install<span class="w"> </span>cube_wrangler
-</span></code></pre></div>
+<h1 id="application-programming-interface">Application Programming Interface<a class="headerlink" href="#application-programming-interface" title="Permanent link"> ¶</a></h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="cube_wrangler.methods"></a>
+    <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="cube_wrangler.methods.example_method" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">example_method</span><span class="p">()</span></code>
+
+<a href="#cube_wrangler.methods.example_method" class="headerlink" title="Permanent link"> ¶</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>This is an example method.</p>
+
+
+            <details class="quote">
+              <summary>Source code in <code>cube_wrangler/methods.py</code></summary>
+              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1">1</a></span>
+<span class="normal"><a href="#__codelineno-0-2">2</a></span>
+<span class="normal"><a href="#__codelineno-0-3">3</a></span>
+<span class="normal"><a href="#__codelineno-0-4">4</a></span>
+<span class="normal"><a href="#__codelineno-0-5">5</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">example_method</span><span class="p">():</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="sd">    This is an example method.</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello from cube_wrangler!&quot;</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
 
 
 
