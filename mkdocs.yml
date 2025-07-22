@@ -7,10 +7,14 @@ use_directory_urls: false
 theme:
   name: material
   features:
-    - navigation.tabs
     - content.code.annotate
+    - content.code.copy
     - content.tabs.link
     - navigation.indexes
+    - navigation.tabs
+    - navigation.expand
+    - toc.integrate
+    - toc.follow
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -37,8 +41,12 @@ plugins:
       default_handler: python
       enable_inventory: true
       handlers:
+        python:
+          paths: [.]
+          selection:
+            new_path_syntax: true
           rendering:
-            show_root_heading: false
+            show_root_heading: true
             show_source: true
             heading_level: 3
 #      custom_templates: templates
@@ -62,14 +70,24 @@ markdown_extensions:
   - codehilite:
       linenums: true
   - meta
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+      use_pygments: true
   - pymdownx.inlinehilite
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_div_format
   - pymdownx.smartsymbols
   - smarty
-  - tables
   - toc:
       # insert a blank space before the character
       permalink: " ¶"
