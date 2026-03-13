@@ -544,6 +544,14 @@ class Project(object):
         WranglerLogger.info("Evaluating project changes.")
 
         if not self.roadway_changes.empty:
+            bool_cols = [
+                col for col in self.parameters.bool_col if col in self.roadway_changes.columns
+            ]
+            self.roadway_changes[bool_cols] = (
+                self.roadway_changes[bool_cols]
+                .replace({"0": 0, "1": 1})
+                .astype(int)
+            )
             highway_change_list = self.add_highway_changes()
 
         if (self.transit_changes is not None) or (
