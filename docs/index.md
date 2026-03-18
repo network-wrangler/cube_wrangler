@@ -1,26 +1,77 @@
 # Cube Wrangler
 
-Welcome to Cube Wrangler. Cube Wrangler is a Python package that contains utilities for working with [Network Wrangler](https://github.com/wsp-sag/network_wrangler). [Cube](https://www.bentley.com/software/cube/) is a commercial travel modeling software package. Cube Wrangler contains methods for carrying out the following common tasks:
-    
-* Creates a set of files than can be read in by a Cube script to create a Cube roadway network.
-* Writes out a Network Wrangler transit network in Cube format.  
-* Converts a Cube Log file, which is a record of roadway edits done in Cube, into a [Project Card](https://github.com/network-wrangler/projectcard).
-* Converts two Cube `LIN` files, which are Cube's way of representing transit, into a Project Card. Note that Cube's log files do not record transit edits. Rather, Cube writes out an updated `LIN` file. Cube Wrangler assesses the differences in the `LIN` files and creates a Project Card that represents the edits.
+Cube Wrangler is a Python package that provides utilities for bridging [Network Wrangler](https://network-wrangler.github.io/network_wrangler/) with [Bentley Cube](https://www.bentley.com/software/cube/), a commercial travel modeling software.
 
+## Capabilities
+
+- **Roadway export**: Creates files that can be read by a Cube script to build a Cube roadway network from a Network Wrangler `RoadwayNetwork`.
+- **Transit export**: Writes a Network Wrangler `TransitNetwork` in Cube `.lin` format.
+- **Log → Project Card**: Converts a Cube Log file (a record of roadway edits made in Cube) into a [Project Card](https://github.com/network-wrangler/projectcard).
+- **LIN diff → Project Card**: Compares two Cube `.lin` files and creates a Project Card representing the transit edits (Cube does not log transit edits; it rewrites the full `.lin` file).
 
 ## Installation
-[NOT YET IMPLEMENTED]
 
-The Cube Wrangler package is available on PyPI. If you are managing multiple python versions, we suggest using [`virtualenv`](https://virtualenv.pypa.io/en/latest/) or [`conda`](https://conda.io/en/latest/) virtual environments. `conda` is the environment manager that is contained within both the Anaconda and mini-conda applications.
+Cube Wrangler requires Python 3.10 or later.
 
-An example installation using conda in the command line is as follows:
+### Using uv (recommended)
 
 ```bash
-conda config --add channels conda-forge
-conda create python=3.10 -n your_environment_name
-conda activate your_environment_name
-pip install cube_wrangler
+uv add cube-wrangler
 ```
 
+### Using pip
 
+```bash
+pip install cube-wrangler
+```
 
+### Development install
+
+```bash
+git clone https://github.com/network-wrangler/cube_wrangler
+cd cube_wrangler
+uv sync
+```
+
+## Quick Start
+
+### Convert a Cube Log file to Project Cards
+
+```python
+from cube_wrangler.project import Project
+import network_wrangler as nw
+
+# Load your base network
+net = nw.load_roadway_from_dir("my_network/")
+
+# Convert Cube log to a project card
+project = Project.create_project(
+    base_roadway_network=net,
+    roadway_log_file="changes.log",
+)
+project.write_project_card("output/")
+```
+
+### Export Network Wrangler network to Cube
+
+```python
+from cube_wrangler.roadway import StandardRoadway
+
+std = StandardRoadway(net, parameters=params)
+std.write_cube_net("output/")
+```
+
+## Ecosystem
+
+Cube Wrangler is part of the Network Wrangler ecosystem:
+
+```
+projectcard  →  network_wrangler  →  cube_wrangler
+(schema)        (applies cards)      (diffs Cube files, emits cards)
+```
+
+| Package | Role |
+|---|---|
+| [projectcard](https://github.com/network-wrangler/projectcard) | Project Card schema and validation |
+| [network_wrangler](https://github.com/network-wrangler/network_wrangler) | Core network manipulation |
+| [cube_wrangler](https://github.com/network-wrangler/cube_wrangler) | Cube ↔ Network Wrangler bridge |

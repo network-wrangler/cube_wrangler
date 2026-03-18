@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.13
+    hooks:
+      - id: ruff
+        types_or: [python]
+        args: [--fix]
+      - id: ruff-format
+        types_or: [python, pyi]
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-json
+      - id: mixed-line-ending
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    additional_dependencies: [pyyaml]
+    hooks:
+      - id: mypy
+        exclude: 'tests/.*'

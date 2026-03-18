@@ -15,6 +15,8 @@ dependencies = [
     "geopandas>=1.1.1",
     "lark>=1.2.2",
     "network-wrangler>=1.0b3",
+    "pandera>=0.20.0",
+    "pydantic>=2.0",
     "numpy>=2.2.6",
     "pandas>=2.3.1",
     "partridge>=1.1.2",
@@ -22,13 +24,40 @@ dependencies = [
     "unidecode>=1.4.0",
 ]
 
+[project.optional-dependencies]
+tests = [
+    "pytest",
+    "pytest-benchmark",
+    "pytest-cov",
+]
+docs = [
+    "json5",
+    "jsonschema",
+    "Markdown",
+    "mike>=2.1.3",
+    "mkdocs>=1.6.1",
+    "mkdocs-autorefs>=1.4.2",
+    "mkdocs-awesome-pages-plugin>=2.10.1",
+    "mkdocs-include-markdown-plugin>=7.1.6",
+    "mkdocs-jupyter>=0.25.1",
+    "mkdocs-material>=9.6.15",
+    "mkdocs-material-extensions",
+    "mkdocs-mermaid2-plugin>=1.2.1",
+    "mkdocs-table-reader-plugin>=3.1.0",
+    "mkdocstrings",
+    "mkdocstrings[python]>=0.29.1",
+]
+
 [dependency-groups]
 dev = [
-    "black",
+    "mypy",
+    "pre-commit",
     "pytest",
+    "pytest-benchmark",
+    "pytest-cov",
+    "ruff",
 ]
 doc = [
-    "black",
     "json5",
     "jsonschema",
     "Markdown",
@@ -54,3 +83,76 @@ name = "testpypi"
 url = "https://test.pypi.org/simple/"
 publish-url = "https://test.pypi.org/legacy/"
 explicit = true
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 99
+
+[tool.ruff.lint]
+select = ["D"]
+ignore = [
+    "UP007",   # non pep-604 annotations
+    "UP045",   # Use `X | None` for type annotations
+    "PLC0415", # import not at top-level (intentional lazy imports)
+    "C416",
+    "PLR0913", # too many args
+    "UP006",   # Use `list` instead of `List`
+]
+extend-select = [
+    "B",   # flake8-bugbear
+    "I",   # isort
+    "C4",  # flake8-comprehensions
+    "EM",  # flake8-errmsg
+    "G",   # flake8-logging-format
+    "PIE", # flake8-pie
+    "PL",  # pylint
+    "PTH", # flake8-use-pathlib
+    "PT",  # flake8-pytest-style
+    "RET", # flake8-return
+    "RUF", # Ruff-specific
+    "SIM", # flake8-simplify
+    "UP",  # pyupgrade
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D103", "D106", "D101", "D104", "D100", "PLR2004"]
+"**/__init__.py" = ["F401", "F403"]
+
+# ---------------------------------------------------------------------------
+# mypy
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+files = "cube_wrangler"
+python_version = "3.10"
+follow_imports = "skip"
+show_error_codes = true
+ignore_missing_imports = true
+disable_error_code = ["attr-defined", "import-untyped"]
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+markers = [
+    "benchmark: performance benchmark tests (deselect with '-m not benchmark')",
+    "roadway: roadway-related tests",
+    "transit: transit-related tests",
+]
+addopts = "--strict-markers"
+
+[tool.coverage.run]
+source = ["cube_wrangler"]
+relative_files = true

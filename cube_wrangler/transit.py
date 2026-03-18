@@ -9,25 +9,26 @@ Typical usage example:
   cube_transit_net.write_as_cube_lin(os.path.join(WRITE_DIR, "outfile.lin"))
 """
 
-import os
+from __future__ import annotations
+
 import copy
 import csv
-import datetime, time
-from typing import Any, Dict, Optional, Union
-
-from lark import Lark, Transformer, v_args
-from pandas import DataFrame
+import datetime
+import time
+from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import partridge as ptg
-
+from lark import Lark, Transformer, v_args
 from network_wrangler.transit.network import TransitNetwork
+from pandas import DataFrame
 
 from .logger import WranglerLogger
 from .parameters import Parameters
 
 
-class StandardTransit(object):
+class StandardTransit:
     """Holds a standard transit feed as a Partridge object and contains
     methods to manipulate and translate the GTFS data to MetCouncil's
     Cube Line files.
@@ -45,14 +46,14 @@ class StandardTransit(object):
     """
 
     def __init__(
-        self, ptg_feed, road_net=None, parameters: Union[Parameters, dict] = {}
+        self, ptg_feed, road_net=None, parameters: Union[Parameters, dict] = None
     ):
+        """Args:
+        ptg_feed: partridge feed object
+        parameters: dictionary of parameter settings (see Parameters class) or an instance of Parameters.
         """
-
-        Args:
-            ptg_feed: partridge feed object
-            parameters: dictionary of parameter settings (see Parameters class) or an instance of Parameters
-        """
+        if parameters is None:
+            parameters = {}
         self.feed = ptg_feed
         self.road_net = road_net
 
@@ -62,18 +63,15 @@ class StandardTransit(object):
             # self.parameters = Parameters(**parameters.__dict__)
             self.parameters = parameters
         else:
-            msg = "Parameters should be a dict or instance of Parameters: found {} which is of type:{}".format(
-                parameters, type(parameters)
-            )
+            msg = f"Parameters should be a dict or instance of Parameters: found {parameters} which is of type:{type(parameters)}"
             WranglerLogger.error(msg)
             raise ValueError(msg)
 
     @staticmethod
     def fromTransitNetwork(
-        transit_network_object: TransitNetwork, parameters: Union[Parameters, dict] = {}
+        transit_network_object: TransitNetwork, parameters: Union[Parameters, dict] = None
     ):
-        """
-        RoadwayNetwork to ModelRoadwayNetwork
+        """RoadwayNetwork to ModelRoadwayNetwork.
 
         Args:
             transit_network_object: Reference to an instance of TransitNetwork.
@@ -83,6 +81,8 @@ class StandardTransit(object):
         Returns:
             StandardTransit
         """
+        if parameters is None:
+            parameters = {}
         return StandardTransit(
             transit_network_object.feed,
             transit_network_object.road_net,
@@ -90,9 +90,8 @@ class StandardTransit(object):
         )
 
     @staticmethod
-    def read_gtfs(gtfs_feed_dir: str, parameters: Union[Parameters, dict] = {}):
-        """
-        Reads GTFS files from a directory and returns a StandardTransit
+    def read_gtfs(gtfs_feed_dir: str, parameters: Union[Parameters, dict] = None):
+        """Reads GTFS files from a directory and returns a StandardTransit
         instance.
 
         Args:
@@ -103,11 +102,12 @@ class StandardTransit(object):
         Returns:
             StandardTransit instance
         """
+        if parameters is None:
+            parameters = {}
         return StandardTransit(ptg.load_feed(gtfs_feed_dir), parameters=parameters)
 
-    def write_as_cube_lin(self, outpath: str = None, line_name_xwalk: str = None):
-        """
-        Writes the gtfs feed as a cube line file after
+    def write_as_cube_lin(self, outpath: str | None = None, line_name_xwalk: str | None = None):
+        """Writes the gtfs feed as a cube line file after
         converting gtfs properties to MetCouncil cube properties.
 
         Args:
@@ -115,13 +115,13 @@ class StandardTransit(object):
 
         """
         if not outpath:
-            outpath = os.path.join(self.parameters.scratch_location, "outtransit.lin")
+            outpath = self.parameters.scratch_location / "outtransit.lin"
         # trip_cube_df = self.route_properties_gtfs_to_cube(self, line_name_xwalk)
 
         # trip_cube_df["LIN"] = trip_cube_df.apply(self.cube_format, axis=1)
 
         l = self.feed.trip_cube_df["LIN"].tolist()
-        l = [";;<<PT>><<LINE>>;;"] + l
+        l = [";;<<PT>><<LINE>>;;", *l]
 
         with open(outpath, "w") as f:
             f.write("\n".join(l))
@@ -129,8 +129,7 @@ class StandardTransit(object):
     def time_to_cube_time_period(
         self, start_time_secs: int, as_str: bool = True, verbose: bool = False
     ):
-        """
-        Converts seconds from midnight to the cube time period.
+        """Converts seconds from midnight to the cube time period.
 
         Args:
             start_time_secs: start time for transit trip in seconds
@@ -169,12 +168,10 @@ class StandardTransit(object):
 
         if verbose:
             WranglerLogger.debug(
-                "Finding Cube Time Period from Start Time: \
-                \n  - start_time_sec: {} \
-                \n  - start_time_dt: {} \
-                \n  - this_tp: {}".format(
-                    start_time_secs, start_time_dt, this_tp
-                )
+                f"Finding Cube Time Period from Start Time: \
+                \n  - start_time_sec: {start_time_secs} \
+                \n  - start_time_dt: {start_time_dt} \
+                \n  - this_tp: {this_tp}"
             )
 
         if as_str:
@@ -185,9 +182,7 @@ class StandardTransit(object):
 
         if not this_tp_num:
             msg = (
-                "Cannot find time period number in {} for time period name: {}".format(
-                    name_to_num, this_tp
-                )
+                f"Cannot find time period number in {name_to_num} for time period name: {this_tp}"
             )
             WranglerLogger.error(msg)
             raise ValueError(msg)
@@ -242,9 +237,8 @@ class CubeTransformer(Transformer):
 
     @v_args(inline=True)
     def lin_attributes(self, *lin_attr):
-        lin_attr = {k: v for (k, v) in lin_attr}
+        return {k: v for (k, v) in lin_attr}
         # WranglerLogger.debug("lin_attributes:  {}".format(lin_attr))
-        return lin_attr
 
     @v_args(inline=True)
     def lin_attr(self, lin_attr_name, attr_value, SEMICOLON_COMMENT=None):
@@ -265,10 +259,9 @@ class CubeTransformer(Transformer):
             return attr_value[0].value
 
     def nodes(self, lin_node):
-        lin_node = DataFrame(lin_node)
+        return DataFrame(lin_node)
         # WranglerLogger.debug("nodes:\n {}".format(lin_node))
 
-        return lin_node
 
     @v_args(inline=True)
     def lin_node(self, NODE_NUM, SEMICOLON_COMMENT=None, *lin_nodeattr):
