@@ -1,7 +1,7 @@
 """Internal helper: measure split_properties_by_time_period_and_category timing."""
 import itertools
-import time
 import sys
+import time
 
 sys.path.insert(0, "..")  # met_council_wrangler
 
@@ -41,7 +41,7 @@ properties_to_split = {
 print("\nBenchmarking prop_for_scope calls:")
 t_total = time.perf_counter()
 call_count = 0
-for prop_name, params in properties_to_split.items():
+for _prop_name, params in properties_to_split.items():
     v = params["v"]
     tps = params.get("time_periods", {})
     cats = params.get("categories", {})

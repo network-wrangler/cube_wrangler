@@ -4,8 +4,8 @@ Cube Wrangler parameters are organised into nested pydantic dataclasses,
 mirroring the pattern used in network_wrangler.  The top-level class is
 :class:`Parameters`, which groups:
 
-- :class:`TimePeriodsConfig`  – time period code → (start, end) time strings
-- :class:`CategoriesConfig`   – vehicle category fallback lookup order
+- :class:`TimePeriodsConfig`  - time period code → (start, end) time strings
+- :class:`CategoriesConfig`   - vehicle category fallback lookup order
 
 Column *types* are no longer declared here.  They are encoded in the pandera
 ``DataFrameModel`` schemas :class:`~cube_wrangler.models.tables.CubeLinksTable`
@@ -28,8 +28,8 @@ Usage::
 
 Backward-compatible dict-style access to time periods and categories::
 
-    params.time_period_to_time   # {"EA": ("3:00","6:00"), "AM": ...}
-    params.categories            # {"sov": [...], "hov2": [...], ...}
+    params.time_period_to_time  # {"EA": ("3:00","6:00"), "AM": ...}
+    params.categories  # {"sov": [...], "hov2": [...], ...}
 """
 
 from __future__ import annotations
@@ -40,7 +40,6 @@ from pydantic import Field
 from pydantic.dataclasses import dataclass
 
 from .logger import WranglerLogger
-
 
 # ---------------------------------------------------------------------------
 # Nested config dataclasses
@@ -256,12 +255,8 @@ class Parameters:
         self.output_node_csv: Path = self.scratch_location / "nodes.csv"
         self.output_link_txt: Path = self.scratch_location / "links.txt"
         self.output_node_txt: Path = self.scratch_location / "nodes.txt"
-        self.output_link_header_width_txt: Path = (
-            self.scratch_location / "links_header_width.txt"
-        )
-        self.output_node_header_width_txt: Path = (
-            self.scratch_location / "nodes_header_width.txt"
-        )
+        self.output_link_header_width_txt: Path = self.scratch_location / "links_header_width.txt"
+        self.output_node_header_width_txt: Path = self.scratch_location / "nodes_header_width.txt"
         self.output_cube_network_script: Path = (
             self.scratch_location / "make_complete_network_from_fixed_width_file.s"
         )

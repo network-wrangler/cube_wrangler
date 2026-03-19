@@ -41,12 +41,12 @@ class CubeLinksTable(DataFrameModel):
         roadway: OSM road type string.
         name: Link name string.
         roadway_class: Roadway class integer code.
-        rail_only: Boolean – link restricted to rail.
-        bus_only: Boolean – link restricted to buses.
-        drive_access: Boolean – driving is permitted.
-        bike_access: Boolean – cycling is permitted.
-        walk_access: Boolean – walking is permitted.
-        truck_access: Boolean – trucks are permitted.
+        rail_only: Boolean - link restricted to rail.
+        bus_only: Boolean - link restricted to buses.
+        drive_access: Boolean - driving is permitted.
+        bike_access: Boolean - cycling is permitted.
+        walk_access: Boolean - walking is permitted.
+        truck_access: Boolean - trucks are permitted.
         trn_priority: Integer transit priority value.
         ttime_assert: Float travel-time assertion.
         lanes_AM: Integer lane count for AM period.
@@ -79,7 +79,7 @@ class CubeLinksTable(DataFrameModel):
         ML_lanes_NT: Managed-lane count for NT period (int).
         segment_id: Segment identifier integer.
         managed: Managed-lane indicator integer.
-        bus_only: Boolean – bus-only flag.
+        bus_only: Boolean - bus-only flag.
         drive_node: Drive node integer identifier.
         walk_node: Walk node integer identifier.
         bike_node: Bike node integer identifier.
@@ -167,7 +167,6 @@ class CubeLinksTable(DataFrameModel):
         add_missing_columns = False
 
 
-
 class CubeNodesTable(DataFrameModel):
     """Schema and type coercion rules for Cube roadway node records.
 
@@ -178,10 +177,10 @@ class CubeNodesTable(DataFrameModel):
         model_node_id: Unique integer node identifier.
         N: Cube node number (same as model_node_id).
         osm_node_id: OSM node identifier string.
-        drive_node: Boolean / integer – node is on the drive network.
-        walk_node: Boolean / integer – node is on the walk network.
-        bike_node: Boolean / integer – node is on the bike network.
-        transit_node: Boolean / integer – node is on the transit network.
+        drive_node: Boolean / integer - node is on the drive network.
+        walk_node: Boolean / integer - node is on the walk network.
+        bike_node: Boolean / integer - node is on the bike network.
+        transit_node: Boolean / integer - node is on the transit network.
         X: Longitude / easting (float).
         Y: Latitude / northing (float).
     """

@@ -6,10 +6,12 @@ import copy
 from pathlib import Path
 
 import pandas as pd
-from pandera.pandas import DataFrameModel
 from pandera.errors import SchemaError, SchemaErrors
+from pandera.pandas import DataFrameModel
 
 from ..logger import WranglerLogger
+
+_SMALL_RECS = 20
 
 
 def _convert_string_dtype_to_object(df: pd.DataFrame) -> pd.DataFrame:
@@ -63,7 +65,7 @@ def coerce_df_to_model(
             len(exc.failure_cases),
             exc.failure_cases,
         )
-        if len(exc.failure_cases) > 20:
+        if len(exc.failure_cases) > _SMALL_RECS:
             exc.failure_cases.to_csv(output_file)
             WranglerLogger.info("Detailed failure cases written to %s", output_file)
         msg = f"Coercion to {model.__name__} failed."

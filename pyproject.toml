@@ -99,6 +99,8 @@ ignore = [
     "PLC0415", # import not at top-level (intentional lazy imports)
     "C416",
     "PLR0913", # too many args
+    "PLR0912", # too many branches (legacy functions)
+    "PLR0915", # too many statements (legacy functions)
     "UP006",   # Use `list` instead of `List`
 ]
 extend-select = [

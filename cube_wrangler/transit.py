@@ -29,8 +29,9 @@ from .parameters import Parameters
 
 
 class StandardTransit:
-    """Holds a standard transit feed as a Partridge object and contains
-    methods to manipulate and translate the GTFS data to MetCouncil's
+    """Holds a standard transit feed as a Partridge object.
+
+    Contains methods to manipulate and translate the GTFS data to MetCouncil's
     Cube Line files.
 
     .. highlight:: python
@@ -45,12 +46,13 @@ class StandardTransit:
             about time periods and variables.
     """
 
-    def __init__(
-        self, ptg_feed, road_net=None, parameters: Union[Parameters, dict] = None
-    ):
-        """Args:
-        ptg_feed: partridge feed object
-        parameters: dictionary of parameter settings (see Parameters class) or an instance of Parameters.
+    def __init__(self, ptg_feed, road_net=None, parameters: Union[Parameters, dict] = None):
+        """Initialize StandardTransit with a partridge feed object.
+
+        Args:
+            ptg_feed: partridge feed object
+            road_net: Optional RoadwayNetwork object for consistency checks.
+            parameters: dictionary of parameter settings (see Parameters class) or an instance of Parameters.
         """
         if parameters is None:
             parameters = {}
@@ -91,8 +93,7 @@ class StandardTransit:
 
     @staticmethod
     def read_gtfs(gtfs_feed_dir: str, parameters: Union[Parameters, dict] = None):
-        """Reads GTFS files from a directory and returns a StandardTransit
-        instance.
+        """Reads GTFS files from a directory and returns a StandardTransit instance.
 
         Args:
             gtfs_feed_dir: location of the GTFS files
@@ -107,11 +108,13 @@ class StandardTransit:
         return StandardTransit(ptg.load_feed(gtfs_feed_dir), parameters=parameters)
 
     def write_as_cube_lin(self, outpath: str | None = None, line_name_xwalk: str | None = None):
-        """Writes the gtfs feed as a cube line file after
-        converting gtfs properties to MetCouncil cube properties.
+        """Writes the gtfs feed as a cube line file.
+
+        Converts gtfs properties to MetCouncil cube properties before writing.
 
         Args:
             outpath: File location for output cube line file.
+            line_name_xwalk: Optional crosswalk for line names.
 
         """
         if not outpath:
@@ -123,7 +126,7 @@ class StandardTransit:
         l = self.feed.trip_cube_df["LIN"].tolist()
         l = [";;<<PT>><<LINE>>;;", *l]
 
-        with open(outpath, "w") as f:
+        with Path(outpath).open("w") as f:
             f.write("\n".join(l))
 
     def time_to_cube_time_period(
@@ -136,6 +139,7 @@ class StandardTransit:
                 from midnight
             as_str: if True, returns the time period as a string,
                 otherwise returns a numeric time period
+            verbose: if True, logs debug information about the time period lookup.
 
         Returns:
             this_tp_num: if as_str is False, returns the numeric
@@ -191,8 +195,7 @@ class StandardTransit:
 
 
 class CubeTransformer(Transformer):
-    """A lark-parsing Transformer which transforms the parse-tree to
-    a dictionary.
+    """A lark-parsing Transformer which transforms the parse-tree to a dictionary.
 
     .. highlight:: python
     Typical usage example:
@@ -206,10 +209,12 @@ class CubeTransformer(Transformer):
     """
 
     def __init__(self):
+        """Initialize CubeTransformer with zeroed line order and empty lines list."""
         self.line_order = 0
         self.lines_list = []
 
     def lines(self, line):
+        """Transform the lines parse-tree node into a dict keyed by line name."""
         # WranglerLogger.debug("lines: \n {}".format(line))
 
         # This MUST be a tuple because it returns to start in the tree
@@ -218,6 +223,7 @@ class CubeTransformer(Transformer):
 
     @v_args(inline=True)
     def program_type_line(self, PROGRAM_TYPE, whitespace=None):
+        """Transform the program type line node and record the program type."""
         # WranglerLogger.debug("program_type_line:{}".format(PROGRAM_TYPE))
         self.program_type = PROGRAM_TYPE.value
 
@@ -226,6 +232,7 @@ class CubeTransformer(Transformer):
 
     @v_args(inline=True)
     def line(self, lin_attributes, nodes):
+        """Transform a single transit line node into a (name, properties) tuple."""
         # WranglerLogger.debug("line...attributes:\n  {}".format(lin_attributes))
         # WranglerLogger.debug("line...nodes:\n  {}".format(nodes))
         lin_name = lin_attributes["NAME"]
@@ -237,15 +244,18 @@ class CubeTransformer(Transformer):
 
     @v_args(inline=True)
     def lin_attributes(self, *lin_attr):
+        """Transform line attribute nodes into a dict of attribute key-value pairs."""
         return {k: v for (k, v) in lin_attr}
         # WranglerLogger.debug("lin_attributes:  {}".format(lin_attr))
 
     @v_args(inline=True)
     def lin_attr(self, lin_attr_name, attr_value, SEMICOLON_COMMENT=None):
+        """Transform a single line attribute into a (name, value) pair."""
         # WranglerLogger.debug("lin_attr {}:  {}".format(lin_attr_name, attr_value))
         return lin_attr_name, attr_value
 
     def lin_attr_name(self, args):
+        """Return the normalized attribute name, appending array index if needed."""
         attr_name = args[0].value.upper()
         # WranglerLogger.debug(".......args {}".format(args))
         if attr_name in ["USERA", "FREQ", "HEADWAY"]:
@@ -253,18 +263,20 @@ class CubeTransformer(Transformer):
         return attr_name
 
     def attr_value(self, attr_value):
+        """Return attribute value as int if possible, otherwise as string."""
         try:
             return int(attr_value[0].value)
         except:
             return attr_value[0].value
 
     def nodes(self, lin_node):
+        """Transform the nodes list into a DataFrame."""
         return DataFrame(lin_node)
         # WranglerLogger.debug("nodes:\n {}".format(lin_node))
 
-
     @v_args(inline=True)
     def lin_node(self, NODE_NUM, SEMICOLON_COMMENT=None, *lin_nodeattr):
+        """Transform a single node token into a node dict with order and stop info."""
         self.line_order += 1
         n = int(NODE_NUM.value)
         return {"node_id": abs(n), "node": n, "stop": n > 0, "order": self.line_order}

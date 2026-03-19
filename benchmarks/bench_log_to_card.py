@@ -35,7 +35,9 @@ import pandas as pd
 # Make tests/utils importable without installation
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from tests.utils.link_changes import (  # noqa: E402
+import contextlib
+
+from tests.utils.link_changes import (
     changeable_cols,
     current_process_link_changes,
     improved_process_link_changes,
@@ -87,10 +89,10 @@ def benchmark_read_logfile(log_path: Path) -> pd.DataFrame:
     node_lines = [x.strip().replace(";", ",") for x in content if x.startswith("N")]
 
     def split_log(x):
-        return list(reader([x], delimiter=",", quotechar='"'))[0]
+        return next(iter(reader([x], delimiter=",", quotechar='"')))
 
-    nodecol = ["OBJECT", "OPERATION", "GROUP"] + node_lines[0].split(",")[1:]
-    linkcol = ["OBJECT", "OPERATION", "GROUP"] + link_lines[0].split(",")[1:]
+    nodecol = ["OBJECT", "OPERATION", "GROUP", *node_lines[0].split(",")[1:]]
+    linkcol = ["OBJECT", "OPERATION", "GROUP", *link_lines[0].split(",")[1:]]
 
     node_df = pd.DataFrame([split_log(x) for x in node_lines[1:]], columns=nodecol)
     link_df = pd.DataFrame([split_log(x) for x in link_lines[1:]], columns=linkcol)
@@ -112,10 +114,8 @@ def benchmark_consolidate_actions(
 
     cols = [c for c in link_df.columns if c in base_links_df.columns]
     for c in cols:
-        try:
+        with contextlib.suppress(Exception):
             link_df[c] = link_df[c].astype(base_links_df[c].dtype)
-        except Exception:
-            pass
 
     history = (
         link_df.groupby(["A", "B"])["OPERATION"]
@@ -129,13 +129,12 @@ def benchmark_consolidate_actions(
     def _final_op(x):
         if x.OPERATION_history[-1] == "D":
             return "N" if "A" in x.OPERATION_history[:-1] else "D"
-        elif x.OPERATION_history[-1] == "A":
+        if x.OPERATION_history[-1] == "A":
             return "C" if "D" in x.OPERATION_history[:-1] else "A"
-        else:
-            return "A" if "A" in x.OPERATION_history[:-1] else "C"
+        return "A" if "A" in x.OPERATION_history[:-1] else "C"
 
     link_df["OPERATION_final"] = link_df.apply(lambda x: _final_op(x), axis=1)
-    return link_df[cols + ["OPERATION_final"]]
+    return link_df[[*cols, "OPERATION_final"]]
 
 
 # ---------------------------------------------------------------------------
