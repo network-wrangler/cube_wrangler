@@ -751,9 +751,17 @@ def write_roadway_as_fixedwidth(
         roadway_net.nodes_df["X"] = roadway_net.nodes_df.geometry.x
         roadway_net.nodes_df["Y"] = roadway_net.nodes_df.geometry.y
 
-    # convert boolean columns to 1/0
-    bool_link_col = [col for col in parameters.bool_col if col in roadway_net.links_df.columns]
-    bool_node_col = [col for col in parameters.bool_col if col in roadway_net.nodes_df.columns]
+    # convert boolean columns to 1/0 — derive from actual dtypes, no hardcoded list needed
+    bool_link_col = [
+        col
+        for col in roadway_net.links_df.columns
+        if pd.api.types.is_bool_dtype(roadway_net.links_df[col])
+    ]
+    bool_node_col = [
+        col
+        for col in roadway_net.nodes_df.columns
+        if pd.api.types.is_bool_dtype(roadway_net.nodes_df[col])
+    ]
 
     link_ff_df, link_max_width_dict = dataframe_to_fixed_width(
         roadway_net.links_df[link_output_variables], bool_link_col
