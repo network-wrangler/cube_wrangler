@@ -84,7 +84,7 @@ def column_name_to_parts(c, parameters=None):
             return c, None, None, managed
 
     tps = parameters.time_period_to_time.keys()
-    cats = parameters.categories.keys()
+    cats = parameters.categories.as_dict().keys()
 
     if c.split("_")[-1] in tps:
         time_period = c.split("_")[-1]

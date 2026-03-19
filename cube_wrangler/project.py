@@ -105,7 +105,7 @@ class Project:
         """
         if parameters is None:
             parameters = {}
-        self.card_data = Dict[str, Dict[str, Any]]
+        self.card_data: dict[str, dict[str, Any]] = {}
 
         self.roadway_changes = roadway_changes
         self.base_roadway_network = base_roadway_network
