@@ -3,12 +3,14 @@
 Log files use the format from the stpaul example network:
   HighwayLayerLogX,"path",8,25,<date>
   Node,model_node_id,X,Y
-  Link,A,B,model_link_id,drive_access,walk_access,bike_access,lanes,distance
-  L,C,<group>,<A>,<B>,<model_link_id>,<drive_access>,<walk_access>,<bike_access>,<lanes>,<distance>
+  Link,A,B,model_link_id,drive_access,walk_access,bike_access,length
+  L,C,<group>,<A>,<B>,<model_link_id>,<drive_access>,<walk_access>,<bike_access>,<length>
 
-Columns chosen are the intersection of the log format and the stpaul link.json schema
-that are not in Project.STATIC_VALUES, so _process_single_link_change will detect
-real diffs and exercise the full comparison loop.
+Columns are chosen from fields that are actually present and non-null in the
+stpaul link.json test network and that are not in Project.STATIC_VALUES, so
+_process_single_link_change will detect real diffs and exercise the full loop.
+Note: the stpaul network stores lanes as a scoped property (always null as a
+plain column), so it is excluded.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ import random
 from pathlib import Path
 
 # Columns written into each synthetic log file's link header and data rows.
+# Must all be present and non-null in the stpaul test network.
 LOG_LINK_COLS = [
     "A",
     "B",
@@ -25,14 +28,12 @@ LOG_LINK_COLS = [
     "drive_access",
     "walk_access",
     "bike_access",
-    "lanes",
-    "distance",
+    "length",
 ]
 
 # Transformations applied to create a genuine change from the network's current value.
 _CHANGES: dict[str, object] = {
-    "lanes": lambda v: int(v) + 1,
-    "drive_access": lambda v: 1 - int(v),
+    "drive_access": lambda v: not v,
 }
 
 
@@ -63,10 +64,7 @@ def load_usable_links(link_json_path: Path) -> list[dict]:
     return [
         lk
         for lk in links
-        if all(c in lk for c in LOG_LINK_COLS)
-        and lk.get("drive_access") is not None
-        and lk.get("lanes") is not None
-        and int(lk.get("lanes", 0)) >= 1
+        if all(lk.get(c) is not None for c in LOG_LINK_COLS)
     ]
 
 
@@ -93,6 +91,9 @@ def generate_change_logfile(
     Returns:
         The path the file was written to.
     """
+    if not usable_links:
+        msg = f"No usable links found — cannot generate {out_path.name}"
+        raise ValueError(msg)
     rng = random.Random(seed)
     sample = rng.choices(usable_links, k=n)
     lines = [_log_header(date)]
