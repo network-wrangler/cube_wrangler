@@ -1,27 +1,34 @@
+"""Project card generation from Cube roadway and transit log files."""
+
+from __future__ import annotations
+
 import json
-import os
-import re
-from typing import Any, Dict, Optional, Union, List
-from csv import reader
-import numpy as np
 import numbers
+import re
+from csv import reader
+from pathlib import Path
+from typing import Any, ClassVar
 
-import pandas as pd
-from pandas import DataFrame
 import geopandas as gpd
-
-from projectcard import ProjectCard, write_card
-from network_wrangler.roadway.network import RoadwayNetwork
+import numpy as np
+import pandas as pd
 from network_wrangler import load_roadway
+from network_wrangler.roadway.network import RoadwayNetwork
+from pandas import DataFrame
+from projectcard import ProjectCard, write_card
 
-from .transit import StandardTransit
 from .logger import WranglerLogger
+from .models.tables import CubeLinksTable
 from .parameters import Parameters
 from .roadway import split_properties_by_time_period_and_category
+from .transit import StandardTransit
 from .util import column_name_to_parts
+from .utils.models import coerce_df_to_model
+
+_DISTANCE_CHANGE_THRESHOLD = 0.01
 
 
-class Project(object):
+class Project:
     """A single or set of changes to the roadway or transit system.
 
     Compares a base and a build transit network or a base and build
@@ -36,9 +43,7 @@ class Project(object):
             build_transit_source=os.path.join(CUBE_DIR, "transit_route_shape_change"),
         )
         test_project.evaluate_changes()
-        test_project.write_project_card(
-            os.path.join(SCRATCH_DIR, "t_transit_shape_test.yml")
-        )
+        test_project.write_project_card(os.path.join(SCRATCH_DIR, "t_transit_shape_test.yml"))
 
     Attributes:
         DEFAULT_PROJECT_NAME: a class-level constant that defines what
@@ -57,14 +62,14 @@ class Project(object):
 
     DEFAULT_PROJECT_NAME = "USER TO define"
 
-    STATIC_VALUES = [
+    STATIC_VALUES: ClassVar[list] = [
         "model_link_id",
         "area_type",
         "county",
         # "assign_group",
         "centroidconnect",
     ]
-    CALCULATED_VALUES = [
+    CALCULATED_VALUES: ClassVar[list] = [
         "area_type",
         "county",
         "assign_group",
@@ -80,15 +85,14 @@ class Project(object):
         build_transit_network: Optional[Any] = None,
         project_name: Optional[str] = "",
         evaluate: Optional[bool] = False,
-        parameters: Union[dict, Parameters] = {},
+        parameters: Union[dict, Parameters] = None,
         # transit_shape_crosswalk_dict: dict = None,
     ):
-        """
-        ProjectCard constructor.
+        """ProjectCard constructor.
 
-        args:
+        Args:
             roadway_changes: dataframe of roadway changes read from a log file
-            transit_changes:
+            transit_changes: CubeTransit instance for transit changes
             base_roadway_network: RoadwayNetwork instance for base case
             base_transit_network: CubeTransit instance for base transit network
             build_transit_network: CubeTransit instance for build transit network
@@ -99,16 +103,16 @@ class Project(object):
 
         returns: instance of ProjectCard
         """
-        self.card_data = Dict[str, Dict[str, Any]]
+        if parameters is None:
+            parameters = {}
+        self.card_data: dict[str, dict[str, Any]] = {}
 
         self.roadway_changes = roadway_changes
         self.base_roadway_network = base_roadway_network
         self.base_transit_network = base_transit_network
         self.build_transit_network = build_transit_network
         self.transit_changes = transit_changes
-        self.project_name = (
-            project_name if project_name else Project.DEFAULT_PROJECT_NAME
-        )
+        self.project_name = project_name if project_name else Project.DEFAULT_PROJECT_NAME
 
         if type(parameters) is dict:
             self.parameters = Parameters(**parameters)
@@ -116,9 +120,7 @@ class Project(object):
             # self.parameters = Parameters(**parameters.__dict__)
             self.parameters = parameters
         else:
-            msg = "Parameters should be a dict or instance of Parameters: found {} which is of type:{}".format(
-                parameters, type(parameters)
-            )
+            msg = f"Parameters should be a dict or instance of Parameters: found {parameters} which is of type:{type(parameters)}"
             WranglerLogger.error(msg)
             raise ValueError(msg)
 
@@ -133,9 +135,8 @@ class Project(object):
         if evaluate:
             self.evaluate_changes()
 
-    def write_project_card(self, filename: str = None):
-        """
-        Writes project cards.
+    def write_project_card(self, filename: str | None = None):
+        """Writes project cards.
 
         Args:
             filename (str): File path to output .yml
@@ -161,10 +162,9 @@ class Project(object):
         project_name: Optional[str] = None,
         recalculate_calculated_variables: Optional[bool] = False,
         recalculate_distance: Optional[bool] = False,
-        parameters: Optional[dict] = {},
+        parameters: Optional[dict] = None,
     ):
-        """
-        Constructor for a Project instance.
+        """Constructor for a Project instance.
 
         Args:
             roadway_log_file: File path to consuming logfile or a list of logfile paths.
@@ -185,15 +185,17 @@ class Project(object):
             recalculate_distance:  recalculate the distance variable. This only needs to be true if you are creating project cards that change the distance.
             parameters: dictionary of parameters
             transit_shape_crosswalk_file: File path to transit shape crosswalk file.
+
         Returns:
             A Project instance.
         """
-
+        if parameters is None:
+            parameters = {}
         if base_transit_source and base_transit_network:
             msg = "Method takes only one of 'base_transit_source' and 'base_transit_network' but both given"
             WranglerLogger.error(msg)
             raise ValueError(msg)
-        elif base_transit_network:
+        if base_transit_network:
             pass
         else:
             msg = "No base transit network."
@@ -204,7 +206,7 @@ class Project(object):
             msg = "Method takes only one of 'build_transit_source' and 'transit_changes' but both given"
             WranglerLogger.error(msg)
             raise ValueError(msg)
-        elif transit_changes:
+        if transit_changes:
             pass
         else:
             msg = "No transit changes given or processed."
@@ -212,39 +214,47 @@ class Project(object):
             transit_changes = None
 
         if roadway_log_file and roadway_changes:
-            msg = "Method takes only one of 'roadway_log_file' and 'roadway_changes' but both given"
+            msg = (
+                "Method takes only one of 'roadway_log_file' and 'roadway_changes' but both given"
+            )
             WranglerLogger.error(msg)
             raise ValueError(msg)
         if roadway_shp_file and roadway_changes:
-            msg = "Method takes only one of 'roadway_shp_file' and 'roadway_changes' but both given"
+            msg = (
+                "Method takes only one of 'roadway_shp_file' and 'roadway_changes' but both given"
+            )
             WranglerLogger.error(msg)
             raise ValueError(msg)
         if roadway_csv_file and roadway_changes:
-            msg = "Method takes only one of 'roadway_csv_file' and 'roadway_changes' but both given"
+            msg = (
+                "Method takes only one of 'roadway_csv_file' and 'roadway_changes' but both given"
+            )
             WranglerLogger.error(msg)
             raise ValueError(msg)
         if roadway_log_file and roadway_csv_file:
-            msg = "Method takes only one of 'roadway_log_file' and 'roadway_csv_file' but both given"
+            msg = (
+                "Method takes only one of 'roadway_log_file' and 'roadway_csv_file' but both given"
+            )
             WranglerLogger.error(msg)
             raise ValueError(msg)
         if roadway_shp_file and roadway_csv_file:
-            msg = "Method takes only one of 'roadway_shp_file' and 'roadway_csv_file' but both given"
+            msg = (
+                "Method takes only one of 'roadway_shp_file' and 'roadway_csv_file' but both given"
+            )
             WranglerLogger.error(msg)
             raise ValueError(msg)
         if roadway_log_file and roadway_shp_file:
-            msg = "Method takes only one of 'roadway_log_file' and 'roadway_shp_file' but both given"
+            msg = (
+                "Method takes only one of 'roadway_log_file' and 'roadway_shp_file' but both given"
+            )
             WranglerLogger.error(msg)
             raise ValueError(msg)
         if roadway_log_file and not project_name:
             if type(roadway_log_file) == list:
-                project_name = os.path.splitext(os.path.basename(roadway_log_file[0]))[
-                    0
-                ]
-                WranglerLogger.info(
-                    "No Project Name - Using name of first log file in list"
-                )
+                project_name = Path(roadway_log_file[0]).stem
+                WranglerLogger.info("No Project Name - Using name of first log file in list")
             else:
-                project_name = os.path.splitext(os.path.basename(roadway_log_file))[0]
+                project_name = Path(roadway_log_file).stem
                 WranglerLogger.info("No Project Name - Using name of log file")
         if roadway_log_file:
             roadway_changes = Project.read_logfile(roadway_log_file)
@@ -267,10 +277,11 @@ class Project(object):
             WranglerLogger.error(msg)
             raise ValueError(msg)
         if base_roadway_dir:
+            base_roadway_dir = Path(base_roadway_dir)
             base_roadway_network = load_roadway(
-                links_file=os.path.join(base_roadway_dir, "link.json"),
-                nodes_file=os.path.join(base_roadway_dir, "node.geojson"),
-                shapes_file=os.path.join(base_roadway_dir, "shape.geojson"),
+                links_file=base_roadway_dir / "link.json",
+                nodes_file=base_roadway_dir / "node.geojson",
+                shapes_file=base_roadway_dir / "shape.geojson",
             )
             base_roadway_network = split_properties_by_time_period_and_category(
                 roadway_net=base_roadway_network, parameters=parameters
@@ -284,7 +295,7 @@ class Project(object):
             WranglerLogger.info(msg)
             base_roadway_network = None
 
-        project = Project(
+        return Project(
             roadway_changes=roadway_changes,
             transit_changes=transit_changes,
             base_roadway_network=base_roadway_network,
@@ -295,12 +306,9 @@ class Project(object):
             parameters=parameters,
         )
 
-        return project
-
     @staticmethod
     def read_logfile(logfilename: Union[str, List[str]]) -> DataFrame:
-        """
-        Reads a Cube log file and returns a dataframe of roadway_changes
+        """Reads a Cube log file and returns a dataframe of roadway_changes.
 
         Args:
             logfilename (str or list[str]): File path to CUBE logfile or list of logfile paths.
@@ -315,39 +323,27 @@ class Project(object):
         node_df = pd.DataFrame()
 
         for file in logfilename:
-            WranglerLogger.info("Reading logfile: {}".format(file))
-            with open(file) as f:
+            WranglerLogger.info(f"Reading logfile: {file}")
+            with Path(file).open() as f:
                 _content = f.readlines()
 
-                _node_lines = [
-                    x.strip().replace(";", ",") for x in _content if x.startswith("N")
-                ]
-                WranglerLogger.debug("node lines: {}".format(_node_lines))
-                _link_lines = [
-                    x.strip().replace(";", ",") for x in _content if x.startswith("L")
-                ]
-                WranglerLogger.debug("link lines: {}".format(_link_lines))
+                _node_lines = [x.strip().replace(";", ",") for x in _content if x.startswith("N")]
+                WranglerLogger.debug(f"node lines: {_node_lines}")
+                _link_lines = [x.strip().replace(";", ",") for x in _content if x.startswith("L")]
+                WranglerLogger.debug(f"link lines: {_link_lines}")
 
-                _nodecol = ["OBJECT", "OPERATION", "GROUP"] + _node_lines[0].split(",")[
-                    1:
-                ]
-                WranglerLogger.debug("Node Cols: {}".format(_nodecol))
-                _linkcol = ["OBJECT", "OPERATION", "GROUP"] + _link_lines[0].split(",")[
-                    1:
-                ]
-                WranglerLogger.debug("Link Cols: {}".format(_linkcol))
+                _nodecol = ["OBJECT", "OPERATION", "GROUP", *_node_lines[0].split(",")[1:]]
+                WranglerLogger.debug(f"Node Cols: {_nodecol}")
+                _linkcol = ["OBJECT", "OPERATION", "GROUP", *_link_lines[0].split(",")[1:]]
+                WranglerLogger.debug(f"Link Cols: {_linkcol}")
 
                 def split_log(x):
-                    return list(reader([x], delimiter=",", quotechar='"'))[0]
+                    return next(iter(reader([x], delimiter=",", quotechar='"')))
 
-                _node_df = pd.DataFrame(
-                    [split_log(x) for x in _node_lines[1:]], columns=_nodecol
-                )
-                WranglerLogger.debug("Node DF: {}".format(_node_df))
-                _link_df = pd.DataFrame(
-                    [split_log(x) for x in _link_lines[1:]], columns=_linkcol
-                )
-                WranglerLogger.debug("Link DF: {}".format(_link_df))
+                _node_df = pd.DataFrame([split_log(x) for x in _node_lines[1:]], columns=_nodecol)
+                WranglerLogger.debug(f"Node DF: {_node_df}")
+                _link_df = pd.DataFrame([split_log(x) for x in _link_lines[1:]], columns=_linkcol)
+                WranglerLogger.debug(f"Link DF: {_link_df}")
 
                 node_df = pd.concat([node_df, _node_df])
                 link_df = pd.concat([link_df, _link_df])
@@ -358,9 +354,7 @@ class Project(object):
         log_df.columns = [c.split("[")[0] for c in log_df.columns]
 
         WranglerLogger.info(
-            "Processed {} Node lines and {} Link lines".format(
-                node_df.shape[0], link_df.shape[0]
-            )
+            f"Processed {node_df.shape[0]} Node lines and {link_df.shape[0]} Link lines"
         )
 
         return log_df
@@ -371,22 +365,20 @@ class Project(object):
         roadway_changes: DataFrame,
         parameters: Parameters,
     ):
-        """
-        Checks to see that any links or nodes that change exist in base roadway network.
-        """
+        """Checks to see that any links or nodes that change exist in base roadway network."""
         WranglerLogger.info(
             "Evaluating compatibility between roadway network changes and base network. Not evaluating deletions."
         )
 
         # CUBE log file saves all variable names in upper cases, need to convert them to be same as network
         log_to_net_df = pd.read_csv(parameters.log_to_net_crosswalk)
-        log_to_net_dict = dict(zip(log_to_net_df["log"], log_to_net_df["net"]))
+        log_to_net_dict = dict(zip(log_to_net_df["log"], log_to_net_df["net"], strict=False))
 
         dbf_to_net_df = pd.read_csv(parameters.net_to_dbf_crosswalk)
-        dbf_to_net_dict = dict(zip(dbf_to_net_df["dbf"], dbf_to_net_df["net"]))
+        dbf_to_net_dict = dict(zip(dbf_to_net_df["dbf"], dbf_to_net_df["net"], strict=False))
 
-        roadway_changes.rename(columns=log_to_net_dict, inplace=True)
-        roadway_changes.rename(columns=dbf_to_net_dict, inplace=True)
+        roadway_changes = roadway_changes.rename(columns=log_to_net_dict)
+        roadway_changes = roadway_changes.rename(columns=dbf_to_net_dict)
 
         # for links "L"  that change "C",
         # find locations where there isn't a base roadway link
@@ -404,9 +396,7 @@ class Project(object):
 
         if len(link_additions_df) > 0:
             link_additions_df["A_B"] = (
-                link_additions_df["A"].astype(str)
-                + "_"
-                + link_additions_df["B"].astype(str)
+                link_additions_df["A"].astype(str) + "_" + link_additions_df["B"].astype(str)
             )
 
             link_changes_df = link_changes_df[
@@ -423,7 +413,7 @@ class Project(object):
         missing_links = link_merge_df.loc[link_merge_df["model_link_id"].isna()]
 
         if missing_links.shape[0]:
-            msg = "Network missing the following AB links:\n{}".format(missing_links)
+            msg = f"Network missing the following AB links:\n{missing_links}"
             WranglerLogger.error(msg)
             raise ValueError(msg)
 
@@ -455,14 +445,14 @@ class Project(object):
         )
         missing_nodes = node_merge_df.loc[node_merge_df["geometry"].isna()]
         if missing_nodes.shape[0]:
-            msg = "Network missing the following nodes:\n{}".format(missing_nodes)
+            msg = f"Network missing the following nodes:\n{missing_nodes}"
             WranglerLogger.error(msg)
             raise ValueError(msg)
 
     def evaluate_changes(self):
-        """
-        Determines which changes should be evaluated, initiates
-        self.card_data to be an aggregation of transit and highway changes.
+        """Determines which changes should be evaluated.
+
+        Initiates self.card_data to be an aggregation of transit and highway changes.
         """
         highway_change_list = []
         transit_change_list = []
@@ -473,8 +463,7 @@ class Project(object):
             highway_change_list = self.add_highway_changes()
 
         if (self.transit_changes is not None) or (
-            self.base_transit_network is not None
-            and self.build_transit_network is not None
+            self.base_transit_network is not None and self.build_transit_network is not None
         ):
             transit_change_list = self.add_transit_changes()
 
@@ -484,58 +473,44 @@ class Project(object):
         }
 
     def add_transit_changes(self):
-        """
-        Evaluates changes between base and build transit objects and
-        adds entries into the self.card_data dictionary.
-        """
+        """Evaluates changes between base and build transit objects.
 
-        transit_change_list = self.build_transit_network.evaluate_differences(
-            self.base_transit_network
-        )
-
-        return transit_change_list
+        Adds entries into the self.card_data dictionary.
+        """
+        return self.build_transit_network.evaluate_differences(self.base_transit_network)
 
     def add_highway_changes(self, limit_variables_to_existing_network=False):
-        """
-        Evaluates changes from the log file based on the base highway object and
-        adds entries into the self.card_data dictionary.
+        """Evaluates changes from the log file based on the base highway object.
+
+        Adds entries into the self.card_data dictionary.
 
         Args:
             limit_variables_to_existing_network (bool): True if no ad-hoc variables.  Default to False.
         """
-
         for c in self.parameters.string_col:
             if c in self.roadway_changes.columns:
                 self.roadway_changes[c] = self.roadway_changes[c].str.lstrip(" ")
 
         ## if worth it, could also add some functionality  to network wrangler itself.
-        node_changes_df = self.roadway_changes[
-            self.roadway_changes.OBJECT == "N"
-        ].copy()
+        node_changes_df = self.roadway_changes[self.roadway_changes.OBJECT == "N"].copy()
 
-        link_changes_df = self.roadway_changes[
-            self.roadway_changes.OBJECT == "L"
-        ].copy()
+        link_changes_df = self.roadway_changes[self.roadway_changes.OBJECT == "L"].copy()
 
         def _final_op(x):
             if x.OPERATION_history[-1] == "D":
                 if "A" in x.OPERATION_history[:-1]:
                     return "N"
-                else:
-                    return "D"
-            elif x.OPERATION_history[-1] == "A":
+                return "D"
+            if x.OPERATION_history[-1] == "A":
                 if "D" in x.OPERATION_history[:-1]:
                     return "C"
-                else:
-                    return "A"
-            else:
-                if "A" in x.OPERATION_history[:-1]:
-                    return "A"
-                else:
-                    return "C"
+                return "A"
+            if "A" in x.OPERATION_history[:-1]:
+                return "A"
+            return "C"
 
         def _process_deletions(link_changes_df):
-            """ """
+            """Process link deletions from the cube log and return a deletion card dict."""
             WranglerLogger.debug("Processing link deletions")
 
             cube_delete_df = link_changes_df[link_changes_df.OPERATION_final == "D"]
@@ -556,17 +531,15 @@ class Project(object):
                         "links": {"model_link_id": links_to_delete, "modes": ["any"]}
                     },
                 }
-                WranglerLogger.debug("{} Links Deleted.".format(len(links_to_delete)))
+                WranglerLogger.debug(f"{len(links_to_delete)} Links Deleted.")
             else:
                 delete_link_dict = None
                 WranglerLogger.debug("No link deletions processed")
 
             return delete_link_dict
 
-        def _process_link_additions(
-            link_changes_df, limit_variables_to_existing_network
-        ):
-            """ """
+        def _process_link_additions(link_changes_df, limit_variables_to_existing_network):
+            """Process link additions from the cube log and return an addition card dict."""
             WranglerLogger.debug("Processing link additions")
             cube_add_df = link_changes_df[link_changes_df.OPERATION_final == "A"].copy()
             if len(cube_add_df) == 0:
@@ -580,34 +553,38 @@ class Project(object):
             # so that we can still create a project card for a network
             # that is not using the Network Wrangler standard schema.
             # users can set such parameters in their implementation.
-            if "no_model_link_id_in_cube" in self.parameters.__dict__.keys():
-                if self.parameters.no_model_link_id_in_cube:
-                    cube_add_df["model_link_id"] = range(
-                        self.base_roadway_network.links_df.model_link_id.max() + 1,
-                        self.base_roadway_network.links_df.model_link_id.max()
-                        + 1
-                        + len(cube_add_df),
-                    )
+            if (
+                "no_model_link_id_in_cube" in self.parameters.__dict__
+                and self.parameters.no_model_link_id_in_cube
+            ):
+                cube_add_df["model_link_id"] = range(
+                    self.base_roadway_network.links_df.model_link_id.max() + 1,
+                    self.base_roadway_network.links_df.model_link_id.max() + 1 + len(cube_add_df),
+                )
 
-            if "no_lanes_in_cube" in self.parameters.__dict__.keys():
-                if self.parameters.no_lanes_in_cube:
-                    cube_add_df["lanes"] = 0
+            if "no_lanes_in_cube" in self.parameters.__dict__ and self.parameters.no_lanes_in_cube:
+                cube_add_df["lanes"] = 0
 
-            if "no_drive_access_in_cube" in self.parameters.__dict__.keys():
-                if self.parameters.no_drive_access_in_cube:
-                    cube_add_df["drive_access"] = 1
+            if (
+                "no_drive_access_in_cube" in self.parameters.__dict__
+                and self.parameters.no_drive_access_in_cube
+            ):
+                cube_add_df["drive_access"] = 1
 
-            if "no_walk_access_in_cube" in self.parameters.__dict__.keys():
-                if self.parameters.no_walk_access_in_cube:
-                    cube_add_df["walk_access"] = 1
+            if (
+                "no_walk_access_in_cube" in self.parameters.__dict__
+                and self.parameters.no_walk_access_in_cube
+            ):
+                cube_add_df["walk_access"] = 1
 
-            if "no_bike_access_in_cube" in self.parameters.__dict__.keys():
-                if self.parameters.no_bike_access_in_cube:
-                    cube_add_df["bike_access"] = 1
+            if (
+                "no_bike_access_in_cube" in self.parameters.__dict__
+                and self.parameters.no_bike_access_in_cube
+            ):
+                cube_add_df["bike_access"] = 1
 
-            if "no_name_in_cube" in self.parameters.__dict__.keys():
-                if self.parameters.no_name_in_cube:
-                    cube_add_df["name"] = "unknown"
+            if "no_name_in_cube" in self.parameters.__dict__ and self.parameters.no_name_in_cube:
+                cube_add_df["name"] = "unknown"
             # end of section to ensure required columns
 
             if limit_variables_to_existing_network:
@@ -617,29 +594,11 @@ class Project(object):
                     if c in self.base_roadway_network.links_df.columns
                 ]
             else:
-                add_col = [
-                    c for c in cube_add_df.columns if c not in ["OPERATION_final"]
-                ]
+                add_col = [c for c in cube_add_df.columns if c not in ["OPERATION_final"]]
                 # can leave out "OPERATION_final" from writing out, is there a reason to write it out?
 
-            # convert column types
-            for bc in list(set(self.parameters.bool_col) & set(cube_add_df.columns)):
-                try:
-                    cube_add_df[bc] = (
-                        pd.to_numeric(cube_add_df[bc]).astype(int).astype(bool)
-                    )
-                except ValueError:
-                    msg = 'Cannot convert column "{}" with values "{}" to boolean.'.format(
-                        bc, cube_add_df[bc].unique()
-                    )
-                    WranglerLogger.error(msg)
-                    raise ValueError(msg)
-            for bc in list(set(self.parameters.int_col) & set(cube_add_df.columns)):
-                cube_add_df[bc] = cube_add_df[bc].astype(int)
-            for bc in list(set(self.parameters.float_col) & set(cube_add_df.columns)):
-                cube_add_df[bc] = cube_add_df[bc].astype(float)
-            for bc in list(set(self.parameters.string_col) & set(cube_add_df.columns)):
-                cube_add_df[bc] = cube_add_df[bc].astype(str)
+            # coerce column types to schema
+            cube_add_df = coerce_df_to_model(cube_add_df, CubeLinksTable)
 
             add_col_final = add_col.copy()
             # properties that are split by time period and category
@@ -649,30 +608,26 @@ class Project(object):
                 # WranglerLogger.debug("Processing Column: {}".format(c))
                 (
                     p_base_name,
-                    p_time_period,
-                    p_category,
-                    managed_lane,
+                    _p_time_period,
+                    _p_category,
+                    _managed_lane,
                 ) = column_name_to_parts(c, self.parameters)
 
-                if p_base_name not in self.parameters.properties_to_split.keys():
+                if p_base_name not in self.parameters.properties_to_split:
                     continue
 
                 if p_base_name in cube_add_df.columns:
                     if cube_add_df[p_base_name].equals(cube_add_df[c]):
                         add_col_final.remove(c)
                         continue
-                    else:
-                        msg = "Detected different changes for split-property variables on regular roadway links: "
-                        msg += 'conflicting "{}" values "{}", "{}"'.format(
-                            p_base_name, cube_add_df[p_base_name], cube_add_df[c]
-                        )
-                        WranglerLogger.error(msg)
-                        raise ValueError(msg)
+                    msg = "Detected different changes for split-property variables on regular roadway links: "
+                    msg += f'conflicting "{p_base_name}" values "{cube_add_df[p_base_name]}", "{cube_add_df[c]}"'
+                    WranglerLogger.error(msg)
+                    raise ValueError(msg)
 
-                else:
-                    cube_add_df[p_base_name] = cube_add_df[c]
-                    add_col_final.remove(c)
-                    add_col_final.append(p_base_name)
+                cube_add_df[p_base_name] = cube_add_df[c]
+                add_col_final.remove(c)
+                add_col_final.append(p_base_name)
 
             add_link_properties = cube_add_df[add_col_final].to_dict("records")
 
@@ -681,21 +636,19 @@ class Project(object):
                 updated_add_link_dict["roadway_addition"]["links"].append(link_dict)
 
             # WranglerLogger.debug("Add Link Properties: {}".format(add_link_properties))
-            WranglerLogger.debug("{} Links Added".format(len(add_link_properties)))
+            WranglerLogger.debug(f"{len(add_link_properties)} Links Added")
 
             return updated_add_link_dict
 
         def _process_node_additions(node_add_df):
-            """ """
+            """Process node additions from the cube log and return a list of node dicts."""
             WranglerLogger.debug("Processing node additions")
 
             if len(node_add_df) == 0:
                 WranglerLogger.debug("No node additions processed")
                 return []
 
-            WranglerLogger.info(
-                "Reprojecting node coordinates from model CRS to standard CRS"
-            )
+            WranglerLogger.info("Reprojecting node coordinates from model CRS to standard CRS")
             if "X" in node_add_df.columns:
                 node_add_df = gpd.GeoDataFrame(
                     node_add_df,
@@ -711,13 +664,12 @@ class Project(object):
             add_nodes_dict_list = node_add_df.drop(
                 ["OPERATION_final", "geometry"], axis=1
             ).to_dict("records")
-            WranglerLogger.debug("{} Nodes Added".format(len(add_nodes_dict_list)))
+            WranglerLogger.debug(f"{len(add_nodes_dict_list)} Nodes Added")
 
             return add_nodes_dict_list
 
         def _process_single_link_change(change_row, changeable_col):
-            """ """
-
+            """Process a single link change row and return a property change DataFrame."""
             #  1. Find associated base year network values
             base_df = self.base_roadway_network.links_df[
                 (self.base_roadway_network.links_df["A"] == change_row.A)
@@ -725,17 +677,13 @@ class Project(object):
             ].copy()
 
             if not base_df.shape[0]:
-                msg = "No match found in network for AB combination: ({},{}). Incompatible base network.".format(
-                    change_row.A, change_row.B
-                )
+                msg = f"No match found in network for AB combination: ({change_row.A},{change_row.B}). Incompatible base network."
                 WranglerLogger.error(msg)
                 raise ValueError(msg)
 
-            elif base_df.shape[0] > 1:
+            if base_df.shape[0] > 1:
                 WranglerLogger.warning(
-                    "Found more than one match in base network for AB combination: ({},{}). Selecting first one to operate on but AB should be unique to network.".format(
-                        row.A, row.B
-                    )
+                    f"Found more than one match in base network for AB combination: ({row.A},{row.B}). Selecting first one to operate on but AB should be unique to network."
                 )
 
             for bc in list(set(self.parameters.bool_col) & set(base_df.columns)):
@@ -747,23 +695,22 @@ class Project(object):
             # 2. find columns that changed (enough)
             changed_col = []
             for col in changeable_col:
-                WranglerLogger.debug("Assessing Column: {}".format(col))
+                WranglerLogger.debug(f"Assessing Column: {col}")
                 # if it is the same as before, or a static value, don't process as a change
-                if isinstance(base_row[col], bool) | isinstance(
-                    base_row[col], np.bool_
-                ):
+                if (isinstance(base_row[col], bool) | isinstance(base_row[col], np.bool_)) and int(
+                    change_row[col]
+                ) == base_row[col]:
                     # when base is boolean, change should be boolean
-                    if int(change_row[col]) == base_row[col]:
-                        continue
-                if isinstance(base_row[col], (int, float)) & isinstance(
-                    change_row[col], (int, float)
-                ):
+                    continue
+                if (
+                    isinstance(base_row[col], int | float)
+                    & isinstance(change_row[col], int | float)
+                ) and base_row[col] == change_row[col]:
                     # when base and change are both numeric, compare as numeric
-                    if base_row[col] == change_row[col]:
-                        continue
-                if str(change_row[col]).strip("\"'").replace(".0", "") == str(
-                    base_row[col]
-                ).strip("\"'").replace(".0", ""):
+                    continue
+                if str(change_row[col]).strip("\"'").replace(".0", "") == str(base_row[col]).strip(
+                    "\"'"
+                ).replace(".0", ""):
                     # when base and change are inconsisteny in type, compare as string
                     continue
                 if (col == "roadway_class") & (change_row[col] == 0):
@@ -772,11 +719,8 @@ class Project(object):
                 # in case distance is upper case, convert it to lower case
                 if col.lower() == "distance":
                     if (
-                        abs(
-                            (change_row[col] - float(base_row[col]))
-                            / base_row[col].astype(float)
-                        )
-                        > 0.01
+                        abs((change_row[col] - float(base_row[col])) / base_row[col].astype(float))
+                        > _DISTANCE_CHANGE_THRESHOLD
                     ):
                         changed_col.append(col)
                     else:
@@ -784,9 +728,7 @@ class Project(object):
                 else:
                     changed_col.append(col)
 
-            WranglerLogger.debug(
-                "Properties with changes that will be processed: {}".format(changed_col)
-            )
+            WranglerLogger.debug(f"Properties with changes that will be processed: {changed_col}")
 
             if not changed_col:
                 return pd.DataFrame()
@@ -802,7 +744,7 @@ class Project(object):
                     msg = "Detected managed lane changes, please create managed lane project card!"
                     WranglerLogger.error(msg)
                     raise ValueError(msg)
-                    return
+                    return None
 
             # regular roadway property change
             for c in changed_col:
@@ -836,13 +778,10 @@ class Project(object):
                     _d = {
                         "set": change_row[c],
                     }
-                if p_time_period:
-                    if managed_lane == 1:
-                        _d["timespan"] = list(
-                            self.parameters.time_period_to_time[p_time_period]
-                        )
-                        if p_category:
-                            _d["category"] = p_category
+                if p_time_period and managed_lane == 1:
+                    _d["timespan"] = list(self.parameters.time_period_to_time[p_time_period])
+                    if p_category:
+                        _d["category"] = p_category
 
                 # iterate through existing properties that have been changed and see if you should just add
                 if (p_base_name in processed_properties) & (managed_lane == 1):
@@ -851,14 +790,16 @@ class Project(object):
                             processed_p["scoped"] += [_d]
                 elif (p_base_name in processed_properties) & (managed_lane == 0):
                     for processed_p in property_dict_list:
-                        if processed_p["property"] == p_base_name:
-                            if processed_p["set"] != change_row[c]:
-                                msg = "Detected different changes for split-property variables on regular roadway links: "
-                                msg += 'conflicting "{}" values "{}", "{}"'.format(
-                                    p_base_name, processed_p["set"], change_row[c]
-                                )
-                                WranglerLogger.error(msg)
-                                raise ValueError(msg)
+                        if (
+                            processed_p["property"] == p_base_name
+                            and processed_p["set"] != change_row[c]
+                        ):
+                            msg = "Detected different changes for split-property variables on regular roadway links: "
+                            msg += 'conflicting "{}" values "{}", "{}"'.format(
+                                p_base_name, processed_p["set"], change_row[c]
+                            )
+                            WranglerLogger.error(msg)
+                            raise ValueError(msg)
                 elif p_time_period:
                     if managed_lane == 1:
                         property_dict = {"property": p_base_name, "scoped": [_d]}
@@ -873,7 +814,7 @@ class Project(object):
                     processed_properties.append(_d["property"])
                     property_dict_list.append(_d)
 
-            card_df = pd.DataFrame(
+            return pd.DataFrame(
                 {
                     "properties": pd.Series([property_dict_list]),
                     "model_link_id": pd.Series(base_row["model_link_id"]),
@@ -882,10 +823,8 @@ class Project(object):
 
             # WranglerLogger.debug('single change card_df:\n {}'.format(card_df))
 
-            return card_df
-
         def _process_link_changes(link_changes_df, changeable_col):
-            """ """
+            """Process link changes from the cube log and return a list of change card dicts."""
             cube_change_df = link_changes_df[link_changes_df.OPERATION_final == "C"]
             if not cube_change_df.shape[0]:
                 WranglerLogger.info("No link changes processed")
@@ -893,7 +832,7 @@ class Project(object):
 
             change_link_dict_df = pd.DataFrame(columns=["properties", "model_link_id"])
 
-            for index, row in cube_change_df.iterrows():
+            for _index, row in cube_change_df.iterrows():
                 card_df = _process_single_link_change(row, changeable_col)
                 change_link_dict_df = pd.concat(
                     [change_link_dict_df, card_df], ignore_index=True, sort=False
@@ -906,13 +845,11 @@ class Project(object):
             # WranglerLogger.debug('change_link_dict_df Unaggregated:\n {}'.format(change_link_dict_df))
 
             # Have to change to string so that it is a hashable type for the aggregation
-            change_link_dict_df["properties"] = change_link_dict_df[
-                "properties"
-            ].astype(str)
+            change_link_dict_df["properties"] = change_link_dict_df["properties"].astype(str)
             # Group the changes that are the same
             change_link_dict_df = (
                 change_link_dict_df.groupby("properties")[["model_link_id"]]
-                .agg(lambda x: list(x))
+                .agg(list)
                 .reset_index()
             )
             # WranglerLogger.debug('change_link_dict_df Aggregated:\n {}'.format(change_link_dict_df))
@@ -935,9 +872,9 @@ class Project(object):
 
             # change_link_dict_df["category"] = "Roadway Property Change"
 
-            change_link_dict_list = change_link_dict_df[
-                ["facility", "properties"]
-            ].to_dict("records")
+            change_link_dict_list = change_link_dict_df[["facility", "properties"]].to_dict(
+                "records"
+            )
 
             # update the change link dictionry to be consistent with the new project card schema
             updated_change_link_dict_list = []
@@ -954,9 +891,7 @@ class Project(object):
                 }
                 updated_change_link_dict_list.append(updated_link_dict)
 
-            WranglerLogger.debug(
-                "{} Changes Processed".format(len(updated_change_link_dict_list))
-            )
+            WranglerLogger.debug(f"{len(updated_change_link_dict_list)} Changes Processed")
             return updated_change_link_dict_list
 
         def _consolidate_actions(log, base, key_list):
@@ -975,9 +910,9 @@ class Project(object):
             )
 
             log_df = pd.merge(log_df, action_history_df, on=key_list, how="left")
-            log_df.drop_duplicates(subset=key_list, keep="last", inplace=True)
-            log_df["OPERATION_final"] = log_df.apply(lambda x: _final_op(x), axis=1)
-            return log_df[changeable_col + ["OPERATION_final"]]
+            log_df = log_df.drop_duplicates(subset=key_list, keep="last")
+            log_df["OPERATION_final"] = log_df.apply(_final_op, axis=1)
+            return log_df[[*changeable_col, "OPERATION_final"]]
 
         delete_link_dict = None
         add_link_dict = []
@@ -1000,36 +935,30 @@ class Project(object):
             WranglerLogger.debug("Processing changes")
             WranglerLogger.debug(link_changes_df)
             changeable_col = list(
-                (
-                    set(link_changes_df.columns)
-                    & set(self.base_roadway_network.links_df.columns)
-                )
+                (set(link_changes_df.columns) & set(self.base_roadway_network.links_df.columns))
                 - set(Project.STATIC_VALUES)
             )
 
             cols_in_changes_not_in_net = list(
-                set(link_changes_df.columns)
-                - set(self.base_roadway_network.links_df.columns)
+                set(link_changes_df.columns) - set(self.base_roadway_network.links_df.columns)
             )
 
             if cols_in_changes_not_in_net:
                 WranglerLogger.warning(
-                    "The following attributes are specified in the changes but do not exist in the base network: {}".format(
-                        cols_in_changes_not_in_net
-                    )
+                    f"The following attributes are specified in the changes but do not exist in the base network: {cols_in_changes_not_in_net}"
                 )
 
             for c in changeable_col:
-                if c in self.parameters.string_col:
-                    self.base_roadway_network.links_df[c].fillna("", inplace=True)
-                elif c in self.parameters.bool_col:
-                    self.base_roadway_network.links_df[c].fillna(False, inplace=True)
+                col = self.base_roadway_network.links_df[c]
+                if pd.api.types.is_bool_dtype(col):
+                    fill: Any = False
+                elif pd.api.types.is_object_dtype(col):
+                    fill = ""
                 else:
-                    self.base_roadway_network.links_df[c].fillna(0, inplace=True)
+                    fill = 0
+                self.base_roadway_network.links_df[c] = col.fillna(fill)
 
-            change_link_dict_list = _process_link_changes(
-                link_changes_df, changeable_col
-            )
+            change_link_dict_list = _process_link_changes(link_changes_df, changeable_col)
 
         if len(node_changes_df) != 0:
             node_changes_df = _consolidate_actions(
@@ -1037,10 +966,7 @@ class Project(object):
             )
 
             # print error message for node change and node deletion
-            if (
-                len(node_changes_df[node_changes_df.OPERATION_final.isin(["C", "D"])])
-                > 0
-            ):
+            if len(node_changes_df[node_changes_df.OPERATION_final.isin(["C", "D"])]) > 0:
                 msg = "NODE changes and deletions are not allowed!"
                 WranglerLogger.error(msg)
                 raise ValueError(msg)
@@ -1059,13 +985,6 @@ class Project(object):
                     }
                 )
 
-        else:
-            None
-
         # combine together
 
-        highway_change_list = list(
-            filter(None, [delete_link_dict] + [add_link_dict] + change_link_dict_list)
-        )
-
-        return highway_change_list
+        return list(filter(None, [delete_link_dict, add_link_dict, *change_link_dict_list]))

@@ -1,107 +1,152 @@
-import os
+"""Parameters and configuration for cube_wrangler.
+
+Cube Wrangler parameters are organised into nested pydantic dataclasses,
+mirroring the pattern used in network_wrangler.  The top-level class is
+:class:`Parameters`, which groups:
+
+- :class:`TimePeriodsConfig`  - time period code → (start, end) time strings
+- :class:`CategoriesConfig`   - vehicle category fallback lookup order
+
+Column *types* are no longer declared here.  They are encoded in the pandera
+``DataFrameModel`` schemas :class:`~cube_wrangler.models.tables.CubeLinksTable`
+and :class:`~cube_wrangler.models.tables.CubeNodesTable`, and applied
+automatically via :func:`~cube_wrangler.utils.models.coerce_df_to_model`.
+
+File-path attributes (``settings_location``, ``scratch_location``, and the
+output-file shortcuts) are derived in ``model_post_init`` from ``base_dir``.
+
+Usage::
+
+    # defaults work out of the box
+    params = Parameters()
+
+    # or point at a specific repo root
+    params = Parameters(base_dir="/path/to/cube_wrangler")
+
+    # override individual settings
+    params = Parameters(time_periods=TimePeriodsConfig(AM=("7:00", "9:00")))
+
+Backward-compatible dict-style access to time periods and categories::
+
+    params.time_period_to_time  # {"EA": ("3:00","6:00"), "AM": ...}
+    params.categories  # {"sov": [...], "hov2": [...], ...}
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from pydantic import Field
+from pydantic.dataclasses import dataclass
+
 from .logger import WranglerLogger
 
-
-def get_base_dir(cube_wrangler_base_dir=os.getcwd()):
-    d = cube_wrangler_base_dir
-    for i in range(3):
-        if "conda-environments" in os.listdir(d):
-            WranglerLogger.info("cube_wrangler base directory set as: {}".format(d))
-            return d
-        d = os.path.dirname(d)
-
-    msg = "Cannot find cube_wrangler base directory from {}, please input using keyword in parameters: `cube_wrangler_base_dir =` ".format(
-        cube_wrangler_base_dir
-    )
-    WranglerLogger.error(msg)
-    raise (ValueError(msg))
+# ---------------------------------------------------------------------------
+# Nested config dataclasses
+# ---------------------------------------------------------------------------
 
 
-class Parameters:
-    """A class representing all the parameters defining the networks
-    including time of day, categories, etc.
+@dataclass
+class TimePeriodsConfig:
+    """Time-of-day period definitions.
 
-    Parameters can be set at runtime by initializing a parameters instance
-    with a keyword argument setting the attribute.  Parameters that are
-    not explicitly set will use default parameters listed in this class.
-    .. highlight:: python
-    ##TODO potentially split this between several classes.
+    Each attribute maps a period code to a ``(start, end)`` time string pair
+    in ``HH:MM`` format (24-hour clock).
 
-    Attr:
+    Attributes:
+        EA: Early-morning period.
+        AM: AM peak period.
+        MD: Midday period.
+        PM: PM peak period.
+        NT: Night period.
     """
 
-    def __init__(self, **kwargs):
-        """
-        constructor for the Parameters class
-        """
-        if "cube_wrangler_base_dir" in kwargs:
-            self.base_dir = get_base_dir(
-                cube_wrangler_base_dir=kwargs.get("cube_wrangler_base_dir")
-            )
-        else:
-            self.base_dir = get_base_dir()
+    EA: tuple[str, str] = ("3:00", "6:00")
+    AM: tuple[str, str] = ("6:00", "10:00")
+    MD: tuple[str, str] = ("10:00", "15:00")
+    PM: tuple[str, str] = ("15:00", "19:00")
+    NT: tuple[str, str] = ("19:00", "3:00")
 
-        if "settings_location" in kwargs:
-            self.settings_location = kwargs.get("settings_location")
-        else:
-            self.settings_location = os.path.join(self.base_dir, "examples", "settings")
+    def as_dict(self) -> dict[str, tuple[str, str]]:
+        """Return time periods as a plain dict (period code → time-span tuple)."""
+        return {"EA": self.EA, "AM": self.AM, "MD": self.MD, "PM": self.PM, "NT": self.NT}
 
-        if "scratch_location" in kwargs:
-            self.scratch_location = kwargs.get("scratch_location")
-        else:
-            self.scratch_location = os.path.join(self.base_dir, "tests", "scratch")
 
-        if "time_periods_to_time" in kwargs:
-            self.time_periods_to_time = kwargs.get("time_periods_to_time")
-        else:
-            self.time_period_to_time = {
-                "EA": ("3:00", "6:00"),
-                "AM": ("6:00", "10:00"),  ##TODO FILL IN with real numbers
-                "MD": ("10:00", "15:00"),
-                "PM": ("15:00", "19:00"),
-                "NT": ("19:00", "3:00"),
-            }
+@dataclass
+class CategoriesConfig:
+    """Vehicle category fallback lookup order.
 
-        if "categories" in kwargs:
-            self.categories = kwargs.get("categories")
-        else:
-            self.categories = {
-                # suffix, source (in order of search)
-                "sov": ["sov", "default"],
-                "hov2": ["hov2", "default", "sov"],
-                "hov3": ["hov3", "hov2", "default", "sov"],
-                "truck": ["trk", "sov", "default"],
-            }
+    Each attribute lists the sequence of source categories to try (in order)
+    when looking up a scoped property value for that category.
 
-        # prefix, source variable, categories
-        self.properties_to_split = {
-            "trn_priority": {
-                "v": "trn_priority",
-                "time_periods": self.time_period_to_time,
-            },
-            "ttime_assert": {
-                "v": "ttime_assert",
-                "time_periods": self.time_period_to_time,
-            },
-            "lanes": {"v": "lanes", "time_periods": self.time_period_to_time},
-            "ML_lanes": {"v": "ML_lanes", "time_periods": self.time_period_to_time},
-            "price": {
-                "v": "price",
-                "time_periods": self.time_period_to_time,
-                "categories": self.categories,
-            },
-            "access": {"v": "access", "time_periods": self.time_period_to_time},
+    Attributes:
+        sov: Single-occupancy vehicle.
+        hov2: High-occupancy vehicle (2+ persons).
+        hov3: High-occupancy vehicle (3+ persons).
+        truck: Truck/commercial vehicle.
+    """
+
+    sov: list[str] = Field(default_factory=lambda: ["sov", "default"])
+    hov2: list[str] = Field(default_factory=lambda: ["hov2", "default", "sov"])
+    hov3: list[str] = Field(default_factory=lambda: ["hov3", "hov2", "default", "sov"])
+    truck: list[str] = Field(default_factory=lambda: ["trk", "sov", "default"])
+
+    def as_dict(self) -> dict[str, list[str]]:
+        """Return categories as a plain dict (category code → fallback list)."""
+        return {
+            "sov": self.sov,
+            "hov2": self.hov2,
+            "hov3": self.hov3,
+            "truck": self.truck,
         }
 
-        self.net_to_dbf_crosswalk = os.path.join(
-            self.settings_location, "net_to_dbf.csv"
-        )
 
-        self.log_to_net_crosswalk = os.path.join(
-            self.settings_location, "log_to_net.csv"
-        )
+# ---------------------------------------------------------------------------
+# Top-level Parameters dataclass
+# ---------------------------------------------------------------------------
 
-        self.output_variables = [
+
+@dataclass
+class Parameters:
+    """All parameters defining the Cube Wrangler network processing pipeline.
+
+    Parameters can be constructed with explicit overrides; anything not
+    provided falls back to the documented defaults.
+
+    Attributes:
+        base_dir: Root directory of the cube_wrangler installation.
+            Defaults to the current working directory.
+        settings_location: Directory containing crosswalk CSV files.
+            Derived from ``base_dir`` when not set explicitly.
+        scratch_location: Directory for intermediate output files.
+            Derived from ``base_dir`` when not set explicitly.
+        time_periods: Time-of-day period definitions.
+        categories: Vehicle category fallback lookup order.
+        zones: Number of TAZs in the model.
+        output_variables: Ordered list of columns written to the Cube output.
+            Column *types* are encoded in
+            :class:`~cube_wrangler.models.tables.CubeLinksTable` /
+            :class:`~cube_wrangler.models.tables.CubeNodesTable`, not here.
+
+    Path shortcuts (set in ``model_post_init``):
+        net_to_dbf_crosswalk, log_to_net_crosswalk,
+        output_link_shp, output_node_shp, output_link_csv, output_node_csv,
+        output_link_txt, output_node_txt, output_link_header_width_txt,
+        output_node_header_width_txt, output_cube_network_script.
+
+    Backward-compatible properties:
+        time_period_to_time: dict form of ``time_periods``.
+        properties_to_split: computed mapping used by roadway splitting logic.
+    """
+
+    base_dir: Path = Field(default_factory=Path.cwd)
+    settings_location: Path | None = None
+    scratch_location: Path | None = None
+    time_periods: TimePeriodsConfig = Field(default_factory=TimePeriodsConfig)
+    categories: CategoriesConfig = Field(default_factory=CategoriesConfig)
+    zones: int = 3061
+    output_variables: list[str] = Field(
+        default_factory=lambda: [
             "model_link_id",
             "link_id",
             "A",
@@ -183,71 +228,61 @@ class Parameters:
             "bike",
             "walk",
         ]
+    )
 
-        self.output_link_shp = os.path.join(self.scratch_location, "links.shp")
-        self.output_node_shp = os.path.join(self.scratch_location, "nodes.shp")
-        self.output_link_csv = os.path.join(self.scratch_location, "links.csv")
-        self.output_node_csv = os.path.join(self.scratch_location, "nodes.csv")
-        self.output_link_txt = os.path.join(self.scratch_location, "links.txt")
-        self.output_node_txt = os.path.join(self.scratch_location, "nodes.txt")
-        self.output_link_header_width_txt = os.path.join(
-            self.scratch_location, "links_header_width.txt"
+    def __post_init__(self) -> None:
+        """Derive path attributes and computed lookups after construction."""
+        self.base_dir = Path(self.base_dir)
+
+        if self.settings_location is None:
+            self.settings_location = self.base_dir / "examples" / "settings"
+        else:
+            self.settings_location = Path(self.settings_location)
+
+        if self.scratch_location is None:
+            self.scratch_location = self.base_dir / "tests" / "scratch"
+        else:
+            self.scratch_location = Path(self.scratch_location)
+
+        # Crosswalk files
+        self.net_to_dbf_crosswalk: Path = self.settings_location / "net_to_dbf.csv"
+        self.log_to_net_crosswalk: Path = self.settings_location / "log_to_net.csv"
+
+        # Output file shortcuts
+        self.output_link_shp: Path = self.scratch_location / "links.shp"
+        self.output_node_shp: Path = self.scratch_location / "nodes.shp"
+        self.output_link_csv: Path = self.scratch_location / "links.csv"
+        self.output_node_csv: Path = self.scratch_location / "nodes.csv"
+        self.output_link_txt: Path = self.scratch_location / "links.txt"
+        self.output_node_txt: Path = self.scratch_location / "nodes.txt"
+        self.output_link_header_width_txt: Path = self.scratch_location / "links_header_width.txt"
+        self.output_node_header_width_txt: Path = self.scratch_location / "nodes_header_width.txt"
+        self.output_cube_network_script: Path = (
+            self.scratch_location / "make_complete_network_from_fixed_width_file.s"
         )
-        self.output_node_header_width_txt = os.path.join(
-            self.scratch_location, "nodes_header_width.txt"
-        )
-        self.output_cube_network_script = os.path.join(
-            self.scratch_location, "make_complete_network_from_fixed_width_file.s"
-        )
 
-        self.bool_col = [
-            "rail_only",
-            "bus_only",
-            "drive_access",
-            "bike_access",
-            "walk_access",
-            "truck_access",
-        ]
+        # Computed roadway-splitting lookup (depends on time_periods + categories)
+        tp = self.time_period_to_time
+        self.properties_to_split: dict = {
+            "trn_priority": {"v": "trn_priority", "time_periods": tp},
+            "ttime_assert": {"v": "ttime_assert", "time_periods": tp},
+            "lanes": {"v": "lanes", "time_periods": tp},
+            "ML_lanes": {"v": "ML_lanes", "time_periods": tp},
+            "price": {
+                "v": "price",
+                "time_periods": tp,
+                "categories": self.categories.as_dict(),
+            },
+            "access": {"v": "access", "time_periods": tp},
+        }
 
-        self.int_col = [
-            "model_link_id",
-            "model_node_id",
-            "A",
-            "B",
-            "lanes_AM",
-            "lanes_MD",
-            "lanes_PM",
-            "lanes_NT",
-            "roadway_class",
-            "assign_group",
-            "county",
-            "area_type",
-            "trn_priority",
-            "AADT",
-            "count_AM",
-            "count_MD",
-            "count_PM",
-            "count_NT",
-            "count_daily",
-            "centroidconnect",
-            "bike_facility",
-            "truck_access",
-            "drive_node",
-            "walk_node",
-            "bike_node",
-            "transit_node",
-            "ML_lanes_AM",
-            "ML_lanes_MD",
-            "ML_lanes_PM",
-            "ML_lanes_NT",
-            "segment_id",
-            "managed",
-            "bike",
-            "walk",
-        ]
+        WranglerLogger.debug(f"Parameters initialised with base_dir={self.base_dir}")
 
-        self.float_col = ["distance", "ttime_assert", "price", "X", "Y"]
+    # ------------------------------------------------------------------
+    # Backward-compatible accessors
+    # ------------------------------------------------------------------
 
-        self.zones = 3061
-
-        self.__dict__.update(kwargs)
+    @property
+    def time_period_to_time(self) -> dict[str, tuple[str, str]]:
+        """Dict form of ``time_periods`` (period code → time-span tuple)."""
+        return self.time_periods.as_dict()
