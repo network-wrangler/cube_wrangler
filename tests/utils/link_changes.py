@@ -1,8 +1,8 @@
 """Reference implementations of _process_link_changes for benchmark comparison.
 
 These mirror the logic in cube_wrangler/project.py so that the benchmark can
-compare the current O(N_network × N_changes) pattern against the improved
-O(N_network + N_changes) pattern without modifying production code.
+measure the current O(N_network x N_changes) pattern in isolation, without
+requiring a fully-wired Project object.
 """
 
 from __future__ import annotations
@@ -63,13 +63,13 @@ def current_process_link_changes(
 ) -> pd.DataFrame:
     """Current implementation: iterrows + full-network boolean mask per row.
 
-    O(N_network × N_changes) — this is the bottleneck identified in the
-    performance analysis.
+    Mirrors the O(N_network x N_changes) loop inside project.evaluate_changes.
+    Used as the benchmark baseline; do not modify to reflect proposed improvements.
     """
     result_df = pd.DataFrame(columns=["properties", "model_link_id"])
 
     for _idx, row in cube_change_df.iterrows():
-        # Full-network scan per row — BOTTLENECK 1
+        # Full-network scan per row
         base_df = base_links_df[
             (base_links_df["A"] == row["A"]) & (base_links_df["B"] == row["B"])
         ].copy()
@@ -87,44 +87,6 @@ def current_process_link_changes(
                     "model_link_id": [base_row["model_link_id"]],
                 }
             )
-        # Growing concat per row — BOTTLENECK 2
         result_df = pd.concat([result_df, card_df], ignore_index=True, sort=False)
 
     return result_df
-
-
-def improved_process_link_changes(
-    cube_change_df: pd.DataFrame,
-    base_links_df: pd.DataFrame,
-    cols: list[str],
-) -> pd.DataFrame:
-    """Improved implementation: pre-built MultiIndex lookup + collect-then-concat.
-
-    O(N_network + N_changes) — the set_index cost is paid once before the loop.
-    """
-    ab_index = base_links_df.set_index(["A", "B"])
-    frames: list[pd.DataFrame] = []
-
-    for _idx, row in cube_change_df.iterrows():
-        try:
-            base_row = ab_index.loc[(row["A"], row["B"])]
-        except KeyError:
-            continue
-        if isinstance(base_row, pd.DataFrame):
-            base_row = base_row.iloc[0]
-
-        changed = _detect_changes(row, base_row, cols)
-        if not changed:
-            continue
-        frames.append(
-            pd.DataFrame(
-                {
-                    "properties": [_build_property_dict(row, base_row, changed)],
-                    "model_link_id": [base_row["model_link_id"]],
-                }
-            )
-        )
-
-    if not frames:
-        return pd.DataFrame(columns=["properties", "model_link_id"])
-    return pd.concat(frames, ignore_index=True, sort=False)

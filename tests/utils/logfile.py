@@ -58,7 +58,7 @@ def load_usable_links(link_json_path: Path) -> list[dict]:
     Returns:
         Filtered list of link dicts.
     """
-    with open(link_json_path) as f:
+    with Path(link_json_path).open() as f:
         links = json.load(f)
     return [
         lk
