@@ -895,7 +895,7 @@ def dataframe_to_fixed_width(df, bool_col):
             )
 
     for c in fw_df.columns:
-        fw_df[c] = fw_df[c].apply(lambda x: str(x))
+        fw_df[c] = fw_df[c].apply(str)
         fw_df["pad"] = fw_df[c].apply(lambda x, _c=c: " " * (max_width_dict[_c] - len(x)))
         fw_df[c] = fw_df.apply(lambda x, _c=c: x["pad"] + x[_c], axis=1)
 

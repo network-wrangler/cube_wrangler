@@ -608,9 +608,9 @@ class Project:
                 # WranglerLogger.debug("Processing Column: {}".format(c))
                 (
                     p_base_name,
-                    p_time_period,
-                    p_category,
-                    managed_lane,
+                    _p_time_period,
+                    _p_category,
+                    _managed_lane,
                 ) = column_name_to_parts(c, self.parameters)
 
                 if p_base_name not in self.parameters.properties_to_split:
@@ -849,7 +849,7 @@ class Project:
             # Group the changes that are the same
             change_link_dict_df = (
                 change_link_dict_df.groupby("properties")[["model_link_id"]]
-                .agg(lambda x: list(x))
+                .agg(list)
                 .reset_index()
             )
             # WranglerLogger.debug('change_link_dict_df Aggregated:\n {}'.format(change_link_dict_df))
@@ -911,7 +911,7 @@ class Project:
 
             log_df = pd.merge(log_df, action_history_df, on=key_list, how="left")
             log_df = log_df.drop_duplicates(subset=key_list, keep="last")
-            log_df["OPERATION_final"] = log_df.apply(lambda x: _final_op(x), axis=1)
+            log_df["OPERATION_final"] = log_df.apply(_final_op, axis=1)
             return log_df[[*changeable_col, "OPERATION_final"]]
 
         delete_link_dict = None
