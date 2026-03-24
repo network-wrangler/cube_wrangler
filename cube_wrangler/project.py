@@ -817,13 +817,11 @@ class Project:
                 return []
 
             # Pre-build (A, B) → positional index once — O(N_network).
-            # Avoids a full boolean mask scan per change row (was O(N_network × N_changes)).
+            # Avoids a full boolean mask scan per change row (was O(N_network x N_changes)).
             base_links = self.base_roadway_network.links_df
             ab_lookup: dict[tuple, int] = {
                 (int(a), int(b)): i
-                for i, (a, b) in enumerate(
-                    zip(base_links["A"], base_links["B"], strict=True)
-                )
+                for i, (a, b) in enumerate(zip(base_links["A"], base_links["B"], strict=True))
             }
 
             card_frames: list[pd.DataFrame] = []  # collect first, concat once at the end

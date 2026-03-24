@@ -9,7 +9,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from geopandas import GeoDataFrame
-from network_wrangler.roadway.links.scopes import prop_for_scope
+from network_wrangler.roadway.links.scopes import props_for_scopes
 from network_wrangler.roadway.network import RoadwayNetwork
 from pandas import DataFrame
 
@@ -44,7 +44,7 @@ def split_properties_by_time_period_and_category(
 
     link_attrs = copy.deepcopy(roadway_net.links_df.attrs)
 
-    if properties_to_split == None:
+    if properties_to_split is None:
         properties_to_split = parameters.properties_to_split
 
     for out_var, params in properties_to_split.items():
@@ -63,25 +63,26 @@ def split_properties_by_time_period_and_category(
                 for time_suffix in params["time_periods"]:
                     roadway_net.links_df[out_var + "_" + time_suffix] = 0
         elif params.get("time_periods") and params.get("categories"):
-            for time_suffix, category_suffix in itertools.product(
-                params["time_periods"], params["categories"]
-            ):
-                roadway_net.links_df[out_var + "_" + category_suffix + "_" + time_suffix] = (
-                    prop_for_scope(
-                        roadway_net.links_df,
-                        params["v"],
-                        category=params["categories"][category_suffix],
-                        timespan=params["time_periods"][time_suffix],
-                    )[params["v"]]
-                )
+            scopes = [
+                {
+                    "label": f"{out_var}_{cat_sfx}_{ts_sfx}",
+                    "timespan": params["time_periods"][ts_sfx],
+                    "category": params["categories"][cat_sfx],
+                }
+                for ts_sfx in params["time_periods"]
+                for cat_sfx in params["categories"]
+            ]
+            resolved = props_for_scopes(roadway_net.links_df, params["v"], scopes)
+            for label, series in resolved.items():
+                roadway_net.links_df[label] = series
         elif params.get("time_periods"):
-            for time_suffix in params["time_periods"]:
-                roadway_net.links_df[out_var + "_" + time_suffix] = prop_for_scope(
-                    roadway_net.links_df,
-                    params["v"],
-                    category=None,
-                    timespan=params["time_periods"][time_suffix],
-                )[params["v"]]
+            scopes = [
+                {"label": f"{out_var}_{ts_sfx}", "timespan": params["time_periods"][ts_sfx]}
+                for ts_sfx in params["time_periods"]
+            ]
+            resolved = props_for_scopes(roadway_net.links_df, params["v"], scopes)
+            for label, series in resolved.items():
+                roadway_net.links_df[label] = series
         else:
             msg = f"Shoudn't have a category without a time period: {params}"
             raise ValueError(msg)

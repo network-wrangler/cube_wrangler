@@ -115,3 +115,30 @@ class TestBenchmarkLinkChanges:
         assert len(result) >= 0
 
 
+# ---------------------------------------------------------------------------
+# Stage 3: split_properties_by_time_period_and_category
+# ---------------------------------------------------------------------------
+
+
+class TestBenchmarkSplitProperties:
+    """Benchmark split_properties_by_time_period_and_category on the stpaul network.
+
+    Uses a network with synthetic scoped values so the benchmark exercises the
+    explode/filter code path, not just the fast-path (no sc_ column).
+
+    Repeated rounds overwrite the same output columns, which is the realistic
+    hot-path: the function is always called on an already-loaded network.
+    """
+
+    def test_split_properties(self, benchmark, stpaul_net_with_scoped, cube_parameters):
+        """Benchmark resolving all scoped properties across time periods and categories."""
+        from cube_wrangler.roadway import split_properties_by_time_period_and_category
+
+        result = benchmark(
+            split_properties_by_time_period_and_category,
+            roadway_net=stpaul_net_with_scoped,
+            parameters=cube_parameters,
+        )
+        assert result is not None
+
+
