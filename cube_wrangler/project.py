@@ -821,9 +821,7 @@ class Project:
             base_links = self.base_roadway_network.links_df
             ab_lookup: dict[tuple, int] = {
                 (int(a), int(b)): i
-                for i, (a, b) in enumerate(
-                    zip(base_links["A"], base_links["B"], strict=True)
-                )
+                for i, (a, b) in enumerate(zip(base_links["A"], base_links["B"], strict=True))
             }
 
             card_frames: list[pd.DataFrame] = []  # collect first, concat once at the end
