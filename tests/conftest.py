@@ -55,7 +55,7 @@ def stpaul_net():
 
 @pytest.fixture(scope="session")
 def stpaul_net_with_scoped(stpaul_net):
-    """stpaul network with synthetic scoped lanes values injected.
+    """Network with synthetic scoped lanes values injected (stpaul fixture).
 
     Without scoped values both old and new split_properties paths are trivially
     fast (no sc_ column → return default immediately). This fixture populates
@@ -72,7 +72,7 @@ def stpaul_net_with_scoped(stpaul_net):
     # Build sc_lanes as a full-length object array (None for un-scoped links).
     sc_lanes = np.empty(len(links), dtype=object)
     sc_lanes[:] = None
-    for i, (idx, row) in enumerate(links.iterrows()):
+    for i, (_idx, row) in enumerate(links.iterrows()):
         if i % 10 == 0:
             sc_lanes[i] = [ScopedLinkValueItem(timespan=["6:00", "10:00"], value=int(row["lanes"]) + 1)]
 

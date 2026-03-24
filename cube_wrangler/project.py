@@ -817,7 +817,7 @@ class Project:
                 return []
 
             # Pre-build (A, B) → positional index once — O(N_network).
-            # Avoids a full boolean mask scan per change row (was O(N_network × N_changes)).
+            # Avoids a full boolean mask scan per change row (was O(N_network x N_changes)).
             base_links = self.base_roadway_network.links_df
             ab_lookup: dict[tuple, int] = {
                 (int(a), int(b)): i

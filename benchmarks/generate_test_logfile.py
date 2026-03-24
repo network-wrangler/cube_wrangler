@@ -40,7 +40,8 @@ STPAUL_LINK_JSON = Path(
 OUT_DIR = Path(__file__).parent.parent / "tests" / "data"
 
 
-def main():
+def main() -> None:
+    """Write synthetic change log files under ``tests/data/`` for each configured size."""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"Reading {STPAUL_LINK_JSON} …")
