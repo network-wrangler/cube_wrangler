@@ -1,8 +1,16 @@
-"""Reference implementations of _process_link_changes for benchmark comparison.
+"""Reference implementation of _process_link_changes for benchmarking.
 
-These mirror the logic in cube_wrangler/project.py so that the benchmark can
-measure the current O(N_network x N_changes) pattern in isolation, without
-requiring a fully-wired Project object.
+Mirrors the logic in cube_wrangler/project.py so the benchmark can measure
+the link-change processing loop in isolation, without a fully-wired Project.
+
+To compare performance across branches, save a baseline on one branch and
+compare on another:
+
+    # on feature/9-modernize-design-patterns
+    pytest tests/test_benchmark.py -m benchmark --benchmark-save=baseline
+
+    # on feature/perf-link-changes
+    pytest tests/test_benchmark.py -m benchmark --benchmark-compare=baseline
 """
 
 from __future__ import annotations
@@ -61,32 +69,37 @@ def current_process_link_changes(
     base_links_df: pd.DataFrame,
     cols: list[str],
 ) -> pd.DataFrame:
-    """Current implementation: iterrows + full-network boolean mask per row.
+    """Mirror of _process_link_changes from cube_wrangler/project.py.
 
-    Mirrors the O(N_network x N_changes) loop inside project.evaluate_changes.
-    Used as the benchmark baseline; do not modify to reflect proposed improvements.
+    Uses a pre-built (A, B) dict for O(1) per-row lookup and collects result
+    frames in a list before a single final concat — O(N_network + N_changes).
     """
-    result_df = pd.DataFrame(columns=["properties", "model_link_id"])
+    # Build (A, B) → positional index once — O(N_network)
+    ab_lookup: dict[tuple, int] = {
+        (int(a), int(b)): i
+        for i, (a, b) in enumerate(
+            zip(base_links_df["A"], base_links_df["B"], strict=True)
+        )
+    }
 
+    card_frames: list[pd.DataFrame] = []
     for _idx, row in cube_change_df.iterrows():
-        # Full-network scan per row
-        base_df = base_links_df[
-            (base_links_df["A"] == row["A"]) & (base_links_df["B"] == row["B"])
-        ].copy()
-        if base_df.empty:
+        link_idx = ab_lookup.get((int(row["A"]), int(row["B"])))
+        if link_idx is None:
             continue
-        base_row = base_df.iloc[0]
+        base_row = base_links_df.iloc[link_idx]
 
         changed = _detect_changes(row, base_row, cols)
-        if not changed:
-            card_df = pd.DataFrame()
-        else:
-            card_df = pd.DataFrame(
-                {
-                    "properties": [_build_property_dict(row, base_row, changed)],
-                    "model_link_id": [base_row["model_link_id"]],
-                }
+        if changed:
+            card_frames.append(
+                pd.DataFrame(
+                    {
+                        "properties": [_build_property_dict(row, base_row, changed)],
+                        "model_link_id": [base_row["model_link_id"]],
+                    }
+                )
             )
-        result_df = pd.concat([result_df, card_df], ignore_index=True, sort=False)
 
-    return result_df
+    if not card_frames:
+        return pd.DataFrame(columns=["properties", "model_link_id"])
+    return pd.concat(card_frames, ignore_index=True, sort=False)
