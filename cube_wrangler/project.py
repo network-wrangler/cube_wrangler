@@ -522,7 +522,7 @@ class Project(object):
             ]
 
         node_merge_df = pd.merge(
-            node_changes_df[["model_node_id"]],
+            node_changes_df[["model_node_id"]].astype(int),
             base_roadway_network.nodes_df[["model_node_id", "geometry"]],
             how="left",
             on=["model_node_id"],
@@ -550,6 +550,7 @@ class Project(object):
             self.roadway_changes[bool_cols] = (
                 self.roadway_changes[bool_cols]
                 .replace({"0": 0, "1": 1})
+                .fillna(0)
                 .astype(int)
             )
             highway_change_list = self.add_highway_changes()
@@ -1089,13 +1090,11 @@ class Project(object):
                     {"nodes": _process_node_additions(node_add_df)}
                 )
             else:
-                add_link_dict.append(
-                    {
+                add_link_dict ={
                         "roadway_addition":{
                             "nodes": _process_node_additions(node_add_df),
                         },
                     }
-                )
 
         else:
             None
