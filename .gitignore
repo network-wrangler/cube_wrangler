@@ -7,3 +7,6 @@ site/*
 *.pyc
 *.log
 !tests/data/*.log
+
+# Editable-install build artifact
+*.egg-info/
