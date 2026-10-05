@@ -1,41 +1,63 @@
-name: Clean Docs for Deleted References
+name: Clean Documentation Versions
+
 on:
   delete:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.ref || github.event.pull_request.number || github.sha }}
+  cancel-in-progress: false
 
 jobs:
-  build:
-    defaults:
-      run:
-        shell: bash -l {0}
+  delete-docs:
+    name: Delete documentation version
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10"]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: Setup Python with UV
+        uses: ./.github/actions/setup-python-uv
         with:
-          version: "0.7.12"
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      
-      - name: "Set up Python"
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: ".python-version"
-      
-      - name: Install cube wrangler
-        run: |
-          uv sync --group doc
-        
+          python-version: "3.13"
+
       - name: Configure Git user
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-      - name: Delete defunct docs versions
+        shell: bash
+
+      - name: Install dependencies
         run: |
-          echo "Deleting ${{ github.event.ref_name }} version from docs"
-          uv run mike delete --push ${{ github.event.ref_name }}
+          uv pip install --system -e .[docs]
+        shell: bash
+
+      - name: Get branch name
+        id: branch
+        uses: ./.github/actions/get-branch-name
+
+      - name: Delete documentation version
+        continue-on-error: true
+        run: |
+          BRANCH_NAME="${{ steps.branch.outputs.branch-name }}"
+          echo "Event type: ${{ github.event_name }}"
+          echo "Deleting documentation version for branch: $BRANCH_NAME"
+
+          if [ "$BRANCH_NAME" = "main" ] || [ "$BRANCH_NAME" = "develop" ]; then
+            echo "Skipping deletion for protected branch: $BRANCH_NAME"
+            exit 0
+          fi
+
+          echo "Checking if documentation version exists..."
+          if mike list | grep -q "^$BRANCH_NAME$"; then
+            echo "Version $BRANCH_NAME exists, attempting to delete..."
+            mike delete --rebase --push "$BRANCH_NAME"
+            echo "Successfully deleted documentation version: $BRANCH_NAME"
+          else
+            echo "Version $BRANCH_NAME does not exist in documentation, nothing to delete"
+          fi
+        shell: bash

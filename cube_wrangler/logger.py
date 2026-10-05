@@ -1,3 +1,5 @@
+"""Logging utilities for cube_wrangler."""
+
 import logging
 
 __all__ = ["WranglerLogger", "setupLogging"]
@@ -8,7 +10,9 @@ WranglerLogger = logging.getLogger("WranglerLogger")
 
 
 def setupLogging(infoLogFilename, debugLogFilename, logToConsole=True):
-    """Sets up the logger.  The infoLog is terse, just gives the bare minimum of details
+    """Set up the logger.
+
+    The infoLog is terse, just gives the bare minimum of details
     so the network composition will be clear later.
     The debuglog is very noisy, for debugging.
 
@@ -22,7 +26,7 @@ def setupLogging(infoLogFilename, debugLogFilename, logToConsole=True):
     WranglerLogger.setLevel(logging.DEBUG)
 
     if infoLogFilename:
-        infologhandler = logging.StreamHandler(open(infoLogFilename, "w"))
+        infologhandler = logging.StreamHandler(open(infoLogFilename, "w"))  # noqa: SIM115, PTH123
         infologhandler.setLevel(logging.INFO)
         infologhandler.setFormatter(
             logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -30,7 +34,7 @@ def setupLogging(infoLogFilename, debugLogFilename, logToConsole=True):
         WranglerLogger.addHandler(infologhandler)
 
     if debugLogFilename:
-        debugloghandler = logging.StreamHandler(open(debugLogFilename, "w"))
+        debugloghandler = logging.StreamHandler(open(debugLogFilename, "w"))  # noqa: SIM115, PTH123
         debugloghandler.setLevel(logging.DEBUG)
         debugloghandler.setFormatter(
             logging.Formatter("%(asctime)s %(levelname)s %(message)s", "%Y-%m-%d %H:%M")
@@ -40,7 +44,5 @@ def setupLogging(infoLogFilename, debugLogFilename, logToConsole=True):
     if logToConsole:
         consolehandler = logging.StreamHandler()
         consolehandler.setLevel(logging.DEBUG)
-        consolehandler.setFormatter(
-            logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
-        )
+        consolehandler.setFormatter(logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s"))
         WranglerLogger.addHandler(consolehandler)
