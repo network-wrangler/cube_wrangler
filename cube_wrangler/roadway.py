@@ -18,6 +18,15 @@ from .models.tables import CubeLinksTable, CubeNodesTable
 from .parameters import Parameters
 from .utils.models import coerce_df_to_model
 
+# Cube Voyager's NETWORK program rejects character (C) variables wider than this; values
+# (e.g. a list-valued field that got stringified) that would exceed it are truncated with a
+# warning in dataframe_to_fixed_width() rather than producing an uncompilable build script.
+# 256 is itself rejected by NETWORK (F(027): 256 exceeds maximum); Cube's own docs don't give
+# an exact figure for this specific limit, but pre-3.0 Cube capped all string variables at 127
+# chars by default (see Pilot PARAMETERS/STRMAXLEN help), so 128 is used as a documented-adjacent,
+# conservative value. Lower this further if NETWORK still reports "<n> exceeds maximum".
+CUBE_MAX_CHAR_WIDTH = 128
+
 
 def split_properties_by_time_period_and_category(
     roadway_net=None, parameters=None, properties_to_split=None
@@ -883,6 +892,17 @@ def dataframe_to_fixed_width(df, bool_col):
         if width == 0:
             max_width_dict[col] = 1
 
+    # CUBE rejects character variables wider than CUBE_MAX_CHAR_WIDTH outright; truncate
+    # rather than let write_roadway_as_fixedwidth() emit a build script CUBE can't compile
+    oversized_cols = {c: w for c, w in max_width_dict.items() if w > CUBE_MAX_CHAR_WIDTH}
+    if oversized_cols:
+        WranglerLogger.warning(
+            f"Truncating columns exceeding CUBE's max character width "
+            f"({CUBE_MAX_CHAR_WIDTH}): {oversized_cols}"
+        )
+        for col in oversized_cols:
+            max_width_dict[col] = CUBE_MAX_CHAR_WIDTH
+
     fw_df = df.copy()
     if "geometry" in df.columns:
         fw_df = fw_df.drop("geometry", axis=1)
@@ -895,7 +915,7 @@ def dataframe_to_fixed_width(df, bool_col):
             )
 
     for c in fw_df.columns:
-        fw_df[c] = fw_df[c].apply(str)
+        fw_df[c] = fw_df[c].apply(str).str.slice(0, max_width_dict[c])
         fw_df["pad"] = fw_df[c].apply(lambda x, _c=c: " " * (max_width_dict[_c] - len(x)))
         fw_df[c] = fw_df.apply(lambda x, _c=c: x["pad"] + x[_c], axis=1)
 
