@@ -28,7 +28,6 @@ import sys
 import time
 from csv import reader
 from pathlib import Path
-from typing import List
 
 import pandas as pd
 
@@ -40,7 +39,6 @@ import contextlib
 from tests.utils.link_changes import (
     changeable_cols,
     current_process_link_changes,
-    improved_process_link_changes,
 )
 
 # ---------------------------------------------------------------------------
@@ -62,27 +60,30 @@ class Timer:
     """Simple context-manager timer."""
 
     def __init__(self, label: str, results: dict):
+        """Initialize timer with a label and results dict."""
         self.label = label
         self.results = results
 
     def __enter__(self):
+        """Start timing."""
         self._start = time.perf_counter()
         return self
 
     def __exit__(self, *args):
+        """Stop timing and record elapsed seconds."""
         elapsed = time.perf_counter() - self._start
         self.results[self.label] = elapsed
         print(f"  {self.label:<55} {elapsed:7.3f}s")
 
 
 # ---------------------------------------------------------------------------
-# Stage 1 – read_logfile  (replica of Project.read_logfile)
+# Stage 1 - read_logfile  (replica of Project.read_logfile)
 # ---------------------------------------------------------------------------
 
 
 def benchmark_read_logfile(log_path: Path) -> pd.DataFrame:
     """Parse a Cube log file into a DataFrame."""
-    with open(log_path) as f:
+    with Path(log_path).open() as f:
         content = f.readlines()
 
     link_lines = [x.strip().replace(";", ",") for x in content if x.startswith("L")]
@@ -102,7 +103,7 @@ def benchmark_read_logfile(log_path: Path) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Stage 2 – consolidate_actions  (replica of _consolidate_actions)
+# Stage 2 - consolidate_actions  (replica of _consolidate_actions)
 # ---------------------------------------------------------------------------
 
 
@@ -142,7 +143,8 @@ def benchmark_consolidate_actions(
 # ---------------------------------------------------------------------------
 
 
-def run_benchmark(sizes: List[int]):
+def run_benchmark(sizes: list[int]):
+    """Run the full benchmark suite for each log size."""
     print(f"\nLoading base network from {LINK_JSON} …")
     t0 = time.perf_counter()
     base_links_df = pd.read_json(LINK_JSON)

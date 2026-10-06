@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import numbers
 import re
 from csv import reader
@@ -668,34 +669,19 @@ class Project:
 
             return add_nodes_dict_list
 
-        def _process_single_link_change(change_row, changeable_col):
-            """Process a single link change row and return a property change DataFrame."""
-            #  1. Find associated base year network values
-            base_df = self.base_roadway_network.links_df[
-                (self.base_roadway_network.links_df["A"] == change_row.A)
-                & (self.base_roadway_network.links_df["B"] == change_row.B)
-            ].copy()
+        def _process_single_link_change(change_row, base_row, changeable_col):
+            """Process a single link change row and return a property change DataFrame.
 
-            if not base_df.shape[0]:
-                msg = f"No match found in network for AB combination: ({change_row.A},{change_row.B}). Incompatible base network."
-                WranglerLogger.error(msg)
-                raise ValueError(msg)
-
-            if base_df.shape[0] > 1:
-                WranglerLogger.warning(
-                    f"Found more than one match in base network for AB combination: ({row.A},{row.B}). Selecting first one to operate on but AB should be unique to network."
-                )
-
-            for bc in list(set(self.parameters.bool_col) & set(base_df.columns)):
-                base_df[bc] = base_df[bc].astype(bool)
-
-            base_row = base_df.iloc[0]
-            # WranglerLogger.debug("Properties with changes: {}".format(changeable_col))
-
+            Args:
+                change_row: row from the cube change DataFrame (iterrows).
+                base_row: pre-looked-up Series from the base network for this (A, B) pair.
+                changeable_col: columns eligible to be treated as property changes.
+            """
             # 2. find columns that changed (enough)
             changed_col = []
             for col in changeable_col:
-                WranglerLogger.debug(f"Assessing Column: {col}")
+                if WranglerLogger.isEnabledFor(logging.DEBUG):
+                    WranglerLogger.debug("Assessing Column: %s", col)
                 # if it is the same as before, or a static value, don't process as a change
                 if (isinstance(base_row[col], bool) | isinstance(base_row[col], np.bool_)) and int(
                     change_row[col]
@@ -830,17 +816,38 @@ class Project:
                 WranglerLogger.info("No link changes processed")
                 return []
 
-            change_link_dict_df = pd.DataFrame(columns=["properties", "model_link_id"])
+            # Pre-build (A, B) → positional index once — O(N_network).
+            # Avoids a full boolean mask scan per change row (was O(N_network x N_changes)).
+            base_links = self.base_roadway_network.links_df
+            ab_lookup: dict[tuple, int] = {
+                (int(a), int(b)): i
+                for i, (a, b) in enumerate(zip(base_links["A"], base_links["B"], strict=True))
+            }
 
+            card_frames: list[pd.DataFrame] = []  # collect first, concat once at the end
             for _index, row in cube_change_df.iterrows():
-                card_df = _process_single_link_change(row, changeable_col)
-                change_link_dict_df = pd.concat(
-                    [change_link_dict_df, card_df], ignore_index=True, sort=False
-                )
+                link_idx = ab_lookup.get((int(row["A"]), int(row["B"])))
+                if link_idx is None:
+                    msg = f"No match found in network for AB combination: ({row['A']},{row['B']}). Incompatible base network."
+                    WranglerLogger.error(msg)
+                    raise ValueError(msg)
 
-            if not change_link_dict_df.shape[0]:
+                base_row = base_links.iloc[link_idx].copy()
+
+                # Coerce bool columns so comparisons work correctly
+                bool_cols = list(set(self.parameters.bool_col) & set(base_row.index))
+                for bc in bool_cols:
+                    base_row[bc] = bool(base_row[bc])
+
+                card_df = _process_single_link_change(row, base_row, changeable_col)
+                if not card_df.empty:
+                    card_frames.append(card_df)
+
+            if not card_frames:
                 WranglerLogger.info("No link changes processed")
                 return []
+
+            change_link_dict_df = pd.concat(card_frames, ignore_index=True, sort=False)
 
             # WranglerLogger.debug('change_link_dict_df Unaggregated:\n {}'.format(change_link_dict_df))
 

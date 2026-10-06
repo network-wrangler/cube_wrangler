@@ -41,6 +41,7 @@ OUT_DIR = Path(__file__).parent.parent / "tests" / "data"
 
 
 def main():
+    """Generate synthetic log files for all configured sizes."""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"Reading {STPAUL_LINK_JSON} …")
