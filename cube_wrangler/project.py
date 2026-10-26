@@ -823,7 +823,9 @@ class Project:
             ]
             coerced_base = coerce_df_to_model(base_links[model_cols], CubeLinksTable)
             cube_change_df = cube_change_df.copy()
-            cube_change_df[model_cols] = coerce_df_to_model(cube_change_df[model_cols], CubeLinksTable)
+            cube_change_df[model_cols] = coerce_df_to_model(
+                cube_change_df[model_cols], CubeLinksTable
+            )
 
             card_frames: list[pd.DataFrame] = []  # collect first, concat once at the end
             for _index, row in cube_change_df.iterrows():
