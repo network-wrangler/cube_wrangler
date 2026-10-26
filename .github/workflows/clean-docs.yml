@@ -42,8 +42,9 @@ jobs:
 
       - name: Delete documentation version
         continue-on-error: true
+        env:
+          BRANCH_NAME: ${{ steps.branch.outputs.branch-name }}
         run: |
-          BRANCH_NAME="${{ steps.branch.outputs.branch-name }}"
           echo "Event type: ${{ github.event_name }}"
           echo "Deleting documentation version for branch: $BRANCH_NAME"
 
@@ -53,7 +54,7 @@ jobs:
           fi
 
           echo "Checking if documentation version exists..."
-          if mike list | grep -q "^$BRANCH_NAME$"; then
+          if mike list | grep -Fqx -- "$BRANCH_NAME"; then
             echo "Version $BRANCH_NAME exists, attempting to delete..."
             mike delete --rebase --push "$BRANCH_NAME"
             echo "Successfully deleted documentation version: $BRANCH_NAME"

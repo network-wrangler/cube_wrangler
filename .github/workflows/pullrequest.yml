@@ -51,12 +51,14 @@ jobs:
 
       - name: Commit fixes
         if: steps.check-changes.outputs.has_changes == 'true'
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add -A
           git commit -m "style: Auto-fix code formatting and linting issues"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          git push origin "HEAD:$PR_HEAD_REF"
         shell: bash
 
       - name: Check for remaining issues
@@ -152,10 +154,12 @@ jobs:
         if: github.event.action == 'opened'
         uses: actions/github-script@v7
         continue-on-error: true
+        env:
+          BRANCH_NAME: ${{ steps.branch.outputs.branch-name }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const branchName = '${{ steps.branch.outputs.branch-name }}';
+            const branchName = process.env.BRANCH_NAME;
             const docsUrl = `https://network-wrangler.github.io/cube_wrangler/${branchName}/`;
             const comment = `Documentation has been built and deployed!\n\nView the docs for this PR: [${docsUrl}](${docsUrl})`;
 

@@ -46,15 +46,18 @@ jobs:
           export VERSION
 
           python - <<'PY'
-          import importlib, os, sys
-          version = os.environ["VERSION"]
-          pkg = "cube_wrangler"
-          m = importlib.import_module(pkg)
-          v = getattr(m, "__version__", None)
-          if v != version:
-            print(f"ERROR: tag version {version} != {pkg}.__version__ {v}")
+          import os
+          import sys
+          import tomllib
+
+          with open("pyproject.toml", "rb") as f:
+              package_version = tomllib.load(f)["project"]["version"]
+
+          tag_version = os.environ["VERSION"]
+          if package_version != tag_version:
+            print(f"ERROR: tag version {tag_version} != pyproject.toml version {package_version}")
             sys.exit(1)
-          print(f"OK: {pkg}.__version__ matches tag ({version})")
+          print(f"OK: pyproject.toml version matches tag ({tag_version})")
           PY
 
       - name: Check if version already exists on PyPI
@@ -93,6 +96,9 @@ jobs:
       - publish-to-pypi
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Build and deploy docs
         uses: ./.github/actions/build-docs
         with:

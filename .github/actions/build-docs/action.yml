@@ -35,12 +35,16 @@ runs:
 
     - name: Build and deploy docs
       continue-on-error: true
+      env:
+        BRANCH_NAME: ${{ inputs.branch-name }}
       run: |
-        mike deploy --push ${{ inputs.branch-name }}
+        mike deploy --push "$BRANCH_NAME"
       shell: bash
 
     - name: Update latest docs alias
       if: inputs.branch-name == 'main'
+      env:
+        BRANCH_NAME: ${{ inputs.branch-name }}
       run: |
-        mike alias ${{ inputs.branch-name }} latest --update-aliases --push
+        mike alias "$BRANCH_NAME" latest --update-aliases --push
       shell: bash
