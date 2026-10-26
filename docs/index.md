@@ -38,6 +38,8 @@ uv sync
 ### Convert a Cube Log file to Project Cards
 
 ```python
+from pathlib import Path
+
 from cube_wrangler.project import Project
 import network_wrangler as nw
 
@@ -49,16 +51,25 @@ project = Project.create_project(
     base_roadway_network=net,
     roadway_log_file="changes.log",
 )
-project.write_project_card("output/")
+
+# write_project_card expects a YAML file path, not a directory
+output_file = Path("output/changes.yml")
+output_file.parent.mkdir(parents=True, exist_ok=True)
+project.write_project_card(str(output_file))
 ```
 
 ### Export Network Wrangler network to Cube
 
 ```python
-from cube_wrangler.roadway import StandardRoadway
+from cube_wrangler.parameters import Parameters
+from cube_wrangler.roadway import write_roadway_as_fixedwidth
 
-std = StandardRoadway(net, parameters=params)
-std.write_cube_net("output/")
+# output_epsg is the CRS of the coordinates in the Cube network
+parameters = Parameters(scratch_location="output/", output_epsg=26915)
+
+# Writes fixed-width link/node files and the Cube network-building script
+# to the output_* paths in `parameters` (under scratch_location)
+write_roadway_as_fixedwidth(net, parameters=parameters)
 ```
 
 ## Ecosystem
