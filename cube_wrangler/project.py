@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import numbers
 import re
 from csv import reader
 from pathlib import Path
@@ -24,7 +23,7 @@ from .parameters import Parameters
 from .roadway import split_properties_by_time_period_and_category
 from .transit import StandardTransit
 from .util import column_name_to_parts
-from .utils.models import coerce_df_to_model
+from .utils.models import coerce_df_to_model, to_python_scalar
 
 _DISTANCE_CHANGE_THRESHOLD = 0.01
 
@@ -742,19 +741,9 @@ class Project:
                     managed_lane,
                 ) = column_name_to_parts(c, self.parameters)
 
-                # make the type of set value consistent with the base value
-                set_value = change_row[c]
-                if base_row[c] is not None:
-                    if isinstance(base_row[c], numbers.Integral):
-                        set_value = int(set_value)
-                        exist_value = int(base_row[c])
-                    elif isinstance(base_row[c], numbers.Real):
-                        set_value = float(set_value)
-                        exist_value = float(base_row[c])
-                    else:
-                        exist_value = base_row[c]
-                    if isinstance(base_row[c], bool):
-                        set_value = bool(int(set_value))
+                # both rows were coerced to CubeLinksTable, so the types already match
+                set_value = to_python_scalar(CubeLinksTable, c, change_row[c])
+                exist_value = to_python_scalar(CubeLinksTable, c, base_row[c])
 
                 _d = {
                     "existing": exist_value,
@@ -824,6 +813,18 @@ class Project:
                 for i, (a, b) in enumerate(zip(base_links["A"], base_links["B"], strict=True))
             }
 
+            # Coerce only the changeable model columns, once, so each change/base pair shares dtypes
+            model_cols = [
+                c
+                for c in changeable_col
+                if c in CubeLinksTable.to_schema().columns
+                and c in base_links.columns
+                and c in cube_change_df.columns
+            ]
+            coerced_base = coerce_df_to_model(base_links[model_cols], CubeLinksTable)
+            cube_change_df = cube_change_df.copy()
+            cube_change_df[model_cols] = coerce_df_to_model(cube_change_df[model_cols], CubeLinksTable)
+
             card_frames: list[pd.DataFrame] = []  # collect first, concat once at the end
             for _index, row in cube_change_df.iterrows():
                 link_idx = ab_lookup.get((int(row["A"]), int(row["B"])))
@@ -833,11 +834,7 @@ class Project:
                     raise ValueError(msg)
 
                 base_row = base_links.iloc[link_idx].copy()
-
-                # Coerce bool columns so comparisons work correctly
-                bool_cols = list(set(self.parameters.bool_col) & set(base_row.index))
-                for bc in bool_cols:
-                    base_row[bc] = bool(base_row[bc])
+                base_row[model_cols] = coerced_base.iloc[link_idx]
 
                 card_df = _process_single_link_change(row, base_row, changeable_col)
                 if not card_df.empty:

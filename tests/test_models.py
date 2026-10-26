@@ -34,6 +34,14 @@ def test_coerce_links_bool_columns():
 
 
 @pytest.mark.roadway
+def test_coerce_links_numeric_string_booleans():
+    """Numeric strings "0"/"1" map to False/True instead of both becoming True."""
+    df = pd.DataFrame({"drive_access": ["0", "1", " 1 "]})
+    result = coerce_df_to_model(df, CubeLinksTable)
+    assert result["drive_access"].tolist() == [False, True, True]
+
+
+@pytest.mark.roadway
 def test_coerce_links_float_columns():
     """Float columns are coerced from int."""
     df = pd.DataFrame({"distance": [100, 200]})

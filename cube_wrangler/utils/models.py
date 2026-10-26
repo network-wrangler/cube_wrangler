@@ -28,12 +28,12 @@ def _convert_string_dtype_to_object(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _parse_string_booleans(df: pd.DataFrame, model: type[DataFrameModel]) -> pd.DataFrame:
-    """Convert "True"/"False" strings to booleans in columns the model declares as bool.
+    """Convert "True"/"False"/"1"/"0" strings to booleans in columns the model declares as bool.
 
     Pandas cannot cast strings to nullable booleans, and ``astype(bool)`` would
     treat every non-empty string (including "False") as True.
     """
-    mapping = {"true": True, "false": False}
+    mapping = {"true": True, "false": False, "1": True, "0": False}
     for col, column in model.to_schema().columns.items():
         if col not in df.columns or not pd.api.types.is_bool_dtype(column.dtype.type):
             continue
@@ -43,6 +43,24 @@ def _parse_string_booleans(df: pd.DataFrame, model: type[DataFrameModel]) -> pd.
             )
             df[col] = parsed
     return df
+
+
+def to_python_scalar(model: type[DataFrameModel], column: str, value: object) -> object:
+    """Convert a value read from a coerced DataFrame to a plain Python scalar.
+
+    Args:
+        model: Pandera DataFrameModel declaring the column.
+        column: Column name the value came from.
+        value: Scalar read from a DataFrame already coerced to ``model``.
+
+    Returns:
+        The value as a plain Python scalar (so it is JSON/YAML serializable), or the
+        column's declared default (possibly ``None``) when the value is missing.
+    """
+    if value is None or (pd.api.types.is_scalar(value) and bool(pd.isna(value))):
+        schema_column = model.to_schema().columns.get(column)
+        return None if schema_column is None else schema_column.default
+    return value.item() if hasattr(value, "item") else value
 
 
 def coerce_df_to_model(
