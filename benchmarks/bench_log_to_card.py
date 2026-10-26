@@ -59,18 +59,18 @@ DEFAULT_SIZES = [10, 50, 100, 500]
 class Timer:
     """Simple context-manager timer."""
 
-    def __init__(self, label: str, results: dict):
-        """Initialize timer with a label and results dict."""
+    def __init__(self, label: str, results: dict) -> None:
+        """Record the label used when storing elapsed time in ``results``."""
         self.label = label
         self.results = results
 
-    def __enter__(self):
-        """Start timing."""
+    def __enter__(self) -> Timer:
+        """Start the timer."""
         self._start = time.perf_counter()
         return self
 
-    def __exit__(self, *args):
-        """Stop timing and record elapsed seconds."""
+    def __exit__(self, *args) -> None:
+        """Stop the timer and store elapsed seconds under ``label``."""
         elapsed = time.perf_counter() - self._start
         self.results[self.label] = elapsed
         print(f"  {self.label:<55} {elapsed:7.3f}s")
@@ -83,7 +83,7 @@ class Timer:
 
 def benchmark_read_logfile(log_path: Path) -> pd.DataFrame:
     """Parse a Cube log file into a DataFrame."""
-    with Path(log_path).open() as f:
+    with log_path.open() as f:
         content = f.readlines()
 
     link_lines = [x.strip().replace(";", ",") for x in content if x.startswith("L")]
@@ -143,8 +143,8 @@ def benchmark_consolidate_actions(
 # ---------------------------------------------------------------------------
 
 
-def run_benchmark(sizes: list[int]):
-    """Run the full benchmark suite for each log size."""
+def run_benchmark(sizes: list[int]) -> None:
+    """Load the base network and time each pipeline stage for each log size."""
     print(f"\nLoading base network from {LINK_JSON} …")
     t0 = time.perf_counter()
     base_links_df = pd.read_json(LINK_JSON)
