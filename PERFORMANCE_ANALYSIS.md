@@ -78,11 +78,13 @@ Speedup grows with N_changes. On a 200k-link production network at 5,000 changes
 
 ---
 
-### 🔴 4. `prop_for_scope` called once per (property × timeperiod × category) — NEXT TIER — HIGH
+### ✅ 4. `prop_for_scope` called once per (property × timeperiod × category) — DONE
 
-**Location:** `cube_wrangler/roadway.py::split_properties_by_time_period_and_category`, lines 65–84
+**Status:** Fixed in PR #12 (`feature/perf-props-for-scopes`, merged). `network_wrangler` now provides `props_for_scopes`, and `cube_wrangler/roadway.py::split_properties_by_time_period_and_category` calls it once per property. The analysis below is kept as the original rationale; re-run the benchmarks to confirm the measured speedup.
 
-**Code:**
+**Location (before fix):** `cube_wrangler/roadway.py::split_properties_by_time_period_and_category`
+
+**Code (before fix):**
 ```python
 for time_suffix, category_suffix in itertools.product(time_periods, categories):
     roadway_net.links_df[out_var + "_" + ...] = prop_for_scope(
@@ -101,7 +103,7 @@ At ~0.3s/call on 66k links → **10–15s** on stpaul; **30–45s** on a 200k-li
 
 **Root cause in network_wrangler:** `prop_for_scope` has no batch / multi-scope API. Each call re-explodes the scoped column from scratch.
 
-**Proposed fix — add `props_for_scopes` to network_wrangler:**
+**Fix — `props_for_scopes` in network_wrangler (original sketch):**
 
 ```python
 # network_wrangler/roadway/links/scopes.py  (new public function)
@@ -148,7 +150,7 @@ for out_var, params in properties_to_split.items():
 For 7 properties: 35 expensive ops → 7 explodes + 35 cheap filters.
 **~10–30× for the `split_properties` step (10–45s → ~1–3s).**
 
-**Implementation note:** Requires a PR to `network_wrangler` to expose `props_for_scopes` (or make `_create_exploded_df_for_scoped_prop` public). The `cube_wrangler` caller change is then straightforward.
+**Implementation note:** This required `network_wrangler` to expose `props_for_scopes`, which is now available on its `main` branch (this project depends on it via a Git reference).
 
 ---
 
@@ -190,7 +192,7 @@ Even after fixing issue 4 (batching), `validate_df_to_model` is still called onc
 
 | Priority | Issue | Estimated gain | Where to implement |
 |----------|-------|----------------|--------------------|
-| **P1** | `props_for_scopes` batch API | 10–30× for split_properties step | `network_wrangler` PR + `cube_wrangler` caller |
+| ✅ **P1** | `props_for_scopes` batch API | 10–30× for split_properties step | Done (PR #12) |
 | **P2** | Convert production network to parquet | 10–20× for load step | Operational (no code change) |
 | **P3** | Skip re-validation in `props_for_scopes` | Removes redundant schema checks | `network_wrangler` |
 
@@ -201,9 +203,9 @@ Even after fixing issue 4 (batching), `validate_df_to_model` is still called onc
 | Step | Current (est.) | After P1 fixes | After all fixes | Speedup |
 |------|---------------|----------------|-----------------|---------|
 | `load_roadway` (geojson) | 20s | 20s | 2s | 10× |
-| `split_properties` (35 prop_for_scope calls) | 45s | ~2s | ~1s | ~30× |
+| `split_properties` (35 prop_for_scope calls) | 45s | ~2s ✅ | ~1s | ~30× |
 | `_process_link_changes` (5k changes, 200k links) | 300s+ | **30s** ✅ | 30s | ~10× |
 | Debug logging overhead | 2s | **<0.1s** ✅ | <0.1s | — |
 | **Total** | **~6 min** | **~55s** | **~35s** | **~10×** |
 
-The biggest remaining wins are `split_properties` (P1) and the network load format (P2 — free). Between them they account for ~65s on production. The `_process_link_changes` optimisation (done) accounts for ~270s at 5k changes — the dominant saving.
+The biggest remaining win is the network load format (P2 — free); `split_properties` (P1) is now done. Together they account for ~65s on production. The `_process_link_changes` optimisation (done) accounts for ~270s at 5k changes — the dominant saving.
