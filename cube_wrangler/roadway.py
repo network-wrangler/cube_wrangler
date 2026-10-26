@@ -342,7 +342,7 @@ def create_managed_variable(
     return roadway_net
 
 
-def add_variable_using_shst_reference(
+def add_variable_using_shst_reference(  # noqa: PLR0917
     roadway_net=None,
     var_shst_csvdata=None,
     shst_csv_variable=None,
@@ -558,7 +558,7 @@ def rename_variables_for_dbf(
     return dbf_df[dbf_name_list]
 
 
-def write_roadway_as_shp(
+def write_roadway_as_shp(  # noqa: PLR0917
     roadway_net=None,
     parameters=None,
     node_output_variables: list | None = None,
@@ -666,7 +666,7 @@ def write_roadway_as_shp(
         roadway_net.nodes_df[node_output_variables].to_csv(output_node_csv, index=False)
 
 
-def write_roadway_as_fixedwidth(
+def write_roadway_as_fixedwidth(  # noqa: PLR0917
     roadway_net=None,
     parameters=None,
     zones: int | None = None,

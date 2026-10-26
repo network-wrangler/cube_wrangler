@@ -77,7 +77,7 @@ class Project:
         "centroidconnect",
     ]
 
-    def __init__(
+    def __init__(  # noqa: PLR0917
         self,
         roadway_changes: Optional[DataFrame] = None,
         transit_changes: Optional[Any] = None,
@@ -148,7 +148,7 @@ class Project:
         write_card(ProjectCard(self.card_data), filename=filename)
 
     @staticmethod
-    def create_project(
+    def create_project(  # noqa: PLR0917
         roadway_log_file: Union[str, List[str], None] = None,
         roadway_shp_file: Optional[str] = None,
         roadway_csv_file: Optional[str] = None,
