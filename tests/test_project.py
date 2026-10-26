@@ -138,3 +138,98 @@ def test_add_highway_changes_processes_boolean_link_change(stpaul_net, cube_para
     # 1 == True, so equality alone would not catch an int/bool mismatch
     assert type(change["existing"]) is bool
     assert type(change["set"]) is bool
+
+
+def _link_change_project(stpaul_net, cube_parameters, base_links, changes):
+    base_network = copy.copy(stpaul_net)
+    base_network.links_df = base_links
+    project = Project(roadway_changes=changes, parameters=cube_parameters)
+    project.base_roadway_network = base_network
+    return project
+
+
+@pytest.mark.roadway
+def test_compatibility_check_returns_renamed_changes(stpaul_net, cube_parameters, tmp_path):
+    """Crosswalk renames are returned so Project.__init__ can keep them."""
+    from cube_wrangler.parameters import Parameters
+
+    pd.DataFrame({"log": ["LOGCOL"], "net": ["lanes_AM"]}).to_csv(
+        tmp_path / "log_to_net.csv", index=False
+    )
+    pd.DataFrame({"dbf": ["DBFCOL"], "net": ["drive_access"]}).to_csv(
+        tmp_path / "net_to_dbf.csv", index=False
+    )
+    parameters = Parameters(settings_location=tmp_path)
+    changes = pd.DataFrame(
+        {
+            "OBJECT": ["L"],
+            "OPERATION": ["A"],
+            "A": [1],
+            "B": [2],
+            "LOGCOL": [3],
+            "model_node_id": [0],
+        }
+    )
+
+    result = Project.determine_roadway_network_changes_compatibility(
+        stpaul_net, changes, parameters
+    )
+
+    assert "lanes_AM" in result.columns
+    assert "LOGCOL" in changes.columns
+
+
+@pytest.mark.roadway
+def test_add_highway_changes_uses_first_duplicate_link(stpaul_net, cube_parameters):
+    """With duplicate (A, B) links, the first one is the base link, as before."""
+    links = stpaul_net.links_df.copy()
+    first = links.loc[links["drive_access"].notna()].iloc[[0]]
+    duplicate = first.copy()
+    duplicate["drive_access"] = not bool(first["drive_access"].iloc[0])
+    links = pd.concat([links, duplicate], ignore_index=True)
+    row = first.iloc[0]
+    changes = pd.DataFrame(
+        [
+            {
+                "OBJECT": "L",
+                "OPERATION": "C",
+                "GROUP": 0,
+                "A": row["A"],
+                "B": row["B"],
+                "drive_access": bool(duplicate["drive_access"].iloc[0]),
+            }
+        ]
+    )
+    project = _link_change_project(stpaul_net, cube_parameters, links, changes)
+
+    result = project.add_highway_changes()
+
+    change = result[0]["roadway_property_change"]["property_changes"]["drive_access"]
+    assert change["existing"] is bool(row["drive_access"])
+
+
+@pytest.mark.roadway
+def test_add_highway_changes_fills_string_dtype_columns(stpaul_net, cube_parameters):
+    """Missing values in StringDtype columns are filled with '' rather than 0."""
+    links = stpaul_net.links_df.copy()
+    link = links.iloc[0]
+    links["name"] = links["name"].astype("string")
+    links.loc[links.index[0], "name"] = pd.NA
+    changes = pd.DataFrame(
+        [
+            {
+                "OBJECT": "L",
+                "OPERATION": "C",
+                "GROUP": 0,
+                "A": link["A"],
+                "B": link["B"],
+                "name": "New Street",
+            }
+        ]
+    )
+    project = _link_change_project(stpaul_net, cube_parameters, links, changes)
+
+    result = project.add_highway_changes()
+
+    change = result[0]["roadway_property_change"]["property_changes"]["name"]
+    assert change == {"existing": "", "set": "New Street"}

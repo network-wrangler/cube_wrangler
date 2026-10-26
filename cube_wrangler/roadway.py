@@ -432,7 +432,24 @@ def add_variable_using_shst_reference(  # noqa: PLR0917
     return roadway_net
 
 
-def convert_types(roadway_net=None, parameters=None):
+def _fill_missing(df: DataFrame, columns, fill) -> DataFrame:
+    """Replace NaN, blank and "NaN" values in ``columns`` with ``fill``."""
+    df = df.copy()
+    for c in set(columns) & set(df.columns):
+        s = df[c]
+        missing = s.isna() | s.astype(object).isin(["", "NaN"])
+        if missing.any():
+            df[c] = s.mask(missing, fill)
+    return df
+
+
+def convert_types(
+    roadway_net=None,
+    parameters=None,
+    int_col_names=None,
+    bool_col_names=None,
+    float_col_names=None,
+):
     """Coerce link and node column types to the Cube network schema.
 
     Replaces the legacy ``convert_int``, ``convert_bool``, and ``fill_na``
@@ -441,17 +458,45 @@ def convert_types(roadway_net=None, parameters=None):
     :class:`~cube_wrangler.models.tables.CubeNodesTable`; coercion is handled
     by :func:`~cube_wrangler.utils.models.coerce_df_to_model`.
 
+    As in the legacy functions, NaN and blank values in integer and float columns
+    are first replaced with 0 and in boolean columns with False.
+
     Args:
         roadway_net: RoadwayNetwork whose ``links_df`` and ``nodes_df`` will
             be coerced in-place.
-        parameters: Unused; retained for backward-compatible call sites.
+        parameters: Provides ``int_col``/``bool_col`` when the column-name arguments
+            are not given. Defaults to ``Parameters()``.
+        int_col_names: Columns whose missing values become 0. Defaults to ``parameters.int_col``.
+        bool_col_names: Columns whose missing values become False.
+            Defaults to ``parameters.bool_col``.
+        float_col_names: Columns whose missing values become 0 (links only).
+            Defaults to the float columns of ``CubeLinksTable``.
 
     Returns:
         The same ``roadway_net`` object with coerced DataFrames.
     """
     WranglerLogger.info("Coercing column types to Cube network schema")
-    roadway_net.links_df = coerce_df_to_model(roadway_net.links_df, CubeLinksTable)
-    roadway_net.nodes_df = coerce_df_to_model(roadway_net.nodes_df, CubeNodesTable)
+    if parameters is None:
+        parameters = Parameters()
+    if int_col_names is None:
+        int_col_names = parameters.int_col
+    if bool_col_names is None:
+        bool_col_names = parameters.bool_col
+    if float_col_names is None:
+        float_col_names = [
+            name
+            for name, column in CubeLinksTable.to_schema().columns.items()
+            if pd.api.types.is_float_dtype(column.dtype.type)
+        ]
+
+    links = roadway_net.links_df
+    links = _fill_missing(links, [*int_col_names, *float_col_names], 0)
+    links = _fill_missing(links, bool_col_names, False)
+    nodes = _fill_missing(roadway_net.nodes_df, int_col_names, 0)
+    nodes = _fill_missing(nodes, bool_col_names, False)
+
+    roadway_net.links_df = coerce_df_to_model(links, CubeLinksTable)
+    roadway_net.nodes_df = coerce_df_to_model(nodes, CubeNodesTable)
     return roadway_net
 
 
@@ -468,7 +513,13 @@ def convert_int(roadway_net=None, parameters=None, int_col_names=None):
         :class:`~cube_wrangler.models.tables.CubeLinksTable`.
     """
     WranglerLogger.warning("convert_int() is deprecated; call convert_types() instead.")
-    return convert_types(roadway_net=roadway_net, parameters=parameters)
+    return convert_types(
+        roadway_net=roadway_net,
+        parameters=parameters,
+        int_col_names=int_col_names,
+        bool_col_names=[],
+        float_col_names=[],
+    )
 
 
 def convert_bool(roadway_net=None, parameters=None, bool_col_names=None):
@@ -479,7 +530,13 @@ def convert_bool(roadway_net=None, parameters=None, bool_col_names=None):
         :class:`~cube_wrangler.models.tables.CubeLinksTable`.
     """
     WranglerLogger.warning("convert_bool() is deprecated; call convert_types() instead.")
-    return convert_types(roadway_net=roadway_net, parameters=parameters)
+    return convert_types(
+        roadway_net=roadway_net,
+        parameters=parameters,
+        int_col_names=[],
+        bool_col_names=bool_col_names,
+        float_col_names=[],
+    )
 
 
 def fill_na(roadway_net=None, parameters=None):
@@ -490,7 +547,11 @@ def fill_na(roadway_net=None, parameters=None):
         :class:`~cube_wrangler.models.tables.CubeLinksTable`.
     """
     WranglerLogger.warning("fill_na() is deprecated; call convert_types() instead.")
-    return convert_types(roadway_net=roadway_net, parameters=parameters)
+    return convert_types(
+        roadway_net=roadway_net,
+        parameters=parameters,
+        bool_col_names=[],
+    )
 
 
 def rename_variables_for_dbf(

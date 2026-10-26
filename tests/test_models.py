@@ -105,6 +105,39 @@ def test_coerce_nodes_missing_columns_ok():
     assert "N" in result.columns
 
 
+@pytest.mark.roadway
+def test_convert_types_fills_blank_and_nan_like_legacy_functions():
+    """NaN/blank integer, float and bool values become 0/False before coercion."""
+    from types import SimpleNamespace
+
+    from cube_wrangler.roadway import convert_bool, convert_int, convert_types
+
+    def make_net(lanes=("", float("nan")), access=("", "1")):
+        links = pd.DataFrame(
+            {
+                "A": [1, 2],
+                "B": [2, 3],
+                "lanes_AM": list(lanes),
+                "distance": [float("nan"), 2.5],
+                "drive_access": list(access),
+            }
+        )
+        return SimpleNamespace(links_df=links, nodes_df=pd.DataFrame({"model_node_id": [1]}))
+
+    net = convert_types(make_net())
+    assert net.links_df["lanes_AM"].tolist() == [0, 0]
+    assert net.links_df["distance"].tolist() == [0.0, 2.5]
+    assert net.links_df["drive_access"].tolist() == [False, True]
+
+    # the narrower legacy wrappers only fill the columns they are responsible for
+    net = convert_int(make_net(access=("1", "1")), int_col_names=["lanes_AM"])
+    assert net.links_df["lanes_AM"].tolist() == [0, 0]
+    assert net.links_df["distance"].isna().tolist() == [True, False]
+    net = convert_bool(make_net(lanes=(1, 2)), bool_col_names=["drive_access"])
+    assert net.links_df["drive_access"].tolist() == [False, True]
+    assert net.links_df["distance"].isna().tolist() == [True, False]
+
+
 # ---------------------------------------------------------------------------
 # Schema import smoke tests
 # ---------------------------------------------------------------------------

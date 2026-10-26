@@ -125,7 +125,7 @@ class Project:
             raise ValueError(msg)
 
         if base_roadway_network != None:
-            self.determine_roadway_network_changes_compatibility(
+            self.roadway_changes = self.determine_roadway_network_changes_compatibility(
                 self.base_roadway_network, self.roadway_changes, self.parameters
             )
 
@@ -364,8 +364,20 @@ class Project:
         base_roadway_network,
         roadway_changes: DataFrame,
         parameters: Parameters,
-    ):
-        """Checks to see that any links or nodes that change exist in base roadway network."""
+    ) -> DataFrame:
+        """Checks that any links or nodes that change exist in base roadway network.
+
+        Args:
+            base_roadway_network: RoadwayNetwork the changes will be applied to.
+            roadway_changes: roadway changes read from a log file.
+            parameters: Parameters providing the log/dbf to network column crosswalks.
+
+        Returns:
+            Copy of ``roadway_changes`` with log and dbf column names renamed to network names.
+
+        Raises:
+            ValueError: If a changed link or node does not exist in the base network.
+        """
         WranglerLogger.info(
             "Evaluating compatibility between roadway network changes and base network. Not evaluating deletions."
         )
@@ -448,6 +460,8 @@ class Project:
             msg = f"Network missing the following nodes:\n{missing_nodes}"
             WranglerLogger.error(msg)
             raise ValueError(msg)
+
+        return roadway_changes
 
     def evaluate_changes(self):
         """Determines which changes should be evaluated.
@@ -798,11 +812,11 @@ class Project:
 
             # Pre-build (A, B) → positional index once — O(N_network).
             # Avoids a full boolean mask scan per change row (was O(N_network x N_changes)).
+            # Duplicate (A, B) pairs keep the first match, as the original boolean-mask lookup did.
             base_links = self.base_roadway_network.links_df
-            ab_lookup: dict[tuple, int] = {
-                (int(a), int(b)): i
-                for i, (a, b) in enumerate(zip(base_links["A"], base_links["B"], strict=True))
-            }
+            ab_lookup: dict[tuple, int] = {}
+            for i, (a, b) in enumerate(zip(base_links["A"], base_links["B"], strict=True)):
+                ab_lookup.setdefault((int(a), int(b)), i)
 
             # Coerce only the changeable model columns, once, so each change/base pair shares dtypes
             model_cols = [
@@ -947,9 +961,13 @@ class Project:
 
             for c in changeable_col:
                 col = self.base_roadway_network.links_df[c]
-                if pd.api.types.is_bool_dtype(col):
+                if pd.api.types.is_bool_dtype(col) or c in self.parameters.bool_col:
                     fill: Any = False
-                elif pd.api.types.is_object_dtype(col):
+                elif (
+                    pd.api.types.is_object_dtype(col)
+                    or pd.api.types.is_string_dtype(col)
+                    or c in self.parameters.string_col
+                ):
                     fill = ""
                 else:
                     fill = 0

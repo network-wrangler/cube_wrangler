@@ -119,6 +119,26 @@ def test_parameters_custom_time_periods():
 
 
 @pytest.mark.roadway
+def test_parameters_keeps_legacy_settings_and_extra_kwargs():
+    """Legacy settings and arbitrary extension kwargs are retained, not dropped."""
+    p = Parameters(output_epsg=26915, no_lanes_in_cube=True, my_setting="x")
+    assert p.output_epsg == 26915
+    assert p.wrangler_epsg == 4326
+    assert p.no_lanes_in_cube is True
+    assert p.no_name_in_cube is False
+    assert p.my_setting == "x"
+
+
+@pytest.mark.roadway
+def test_parameters_schema_derived_column_lists():
+    """string_col/bool_col/int_col come from the Cube data models."""
+    p = Parameters()
+    assert "name" in p.string_col
+    assert "drive_access" in p.bool_col
+    assert "lanes_AM" in p.int_col
+
+
+@pytest.mark.roadway
 def test_parameters_zones_default(cube_parameters):
     """Default zones value is set."""
     assert cube_parameters.zones == 3061

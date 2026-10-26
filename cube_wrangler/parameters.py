@@ -37,7 +37,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
-from pydantic import Field
+from pydantic import ConfigDict, Field
 from pydantic.dataclasses import dataclass
 
 from .logger import WranglerLogger
@@ -133,7 +133,7 @@ class CategoriesConfig:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(config=ConfigDict(extra="allow"))
 class Parameters:
     """All parameters defining the Cube Wrangler network processing pipeline.
 
