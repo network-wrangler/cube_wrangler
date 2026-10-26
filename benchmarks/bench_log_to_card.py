@@ -39,7 +39,6 @@ import contextlib
 from tests.utils.link_changes import (
     changeable_cols,
     current_process_link_changes,
-    improved_process_link_changes,
 )
 
 # ---------------------------------------------------------------------------
