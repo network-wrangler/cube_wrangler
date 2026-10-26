@@ -1,0 +1,151 @@
+name: CI (Lint, Test, Docs, Benchmark)
+
+on:
+  push:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    name: Lint code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python with UV
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: "3.13"
+
+      - name: Install ruff
+        run: |
+          uv pip install --system ruff
+        shell: bash
+
+      - name: Check formatting
+        run: ruff format --check cube_wrangler
+        continue-on-error: true
+
+      - name: Check linting
+        run: ruff check --output-format=github cube_wrangler
+        continue-on-error: true
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python with UV
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e .[tests]
+        shell: bash
+
+      - name: Run tests
+        run: |
+          # Generate coverage and run benchmarks only on Python 3.13 to save time
+          if [ "${{ matrix.python-version }}" = "3.13" ]; then
+            pytest tests/ -m "not benchmark" \
+              --junitxml=pytest.xml \
+              --cov=cube_wrangler \
+              --cov-report "xml:coverage.xml"
+            pytest tests/test_benchmark.py -m benchmark \
+              --benchmark-json=benchmark.json \
+              --benchmark-save=benchmark \
+              || echo "Benchmark tests completed"
+          else
+            pytest tests/ -m "not benchmark"
+          fi
+        shell: bash
+
+      - name: Upload coverage artifacts
+        if: matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-py3.13
+          path: |
+            coverage.xml
+            pytest.xml
+          if-no-files-found: error
+
+      - name: Upload benchmark artifacts
+        if: matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-py3.13
+          path: |
+            benchmark.json
+            .benchmarks/
+          if-no-files-found: warn
+
+  benchmark:
+    name: Compare and store benchmarks
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download benchmark artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-py3.13
+          path: ./
+        continue-on-error: true
+
+      - name: Check if benchmark.json exists
+        shell: bash
+        run: |
+          if [ ! -f "benchmark.json" ]; then
+            echo "WARNING: benchmark.json not found. Skipping benchmark comparison."
+            exit 0
+          fi
+          echo "benchmark.json found"
+
+      - name: Compare and commit benchmarks
+        if: hashFiles('benchmark.json') != ''
+        uses: ./.github/actions/compare-benchmarks
+        with:
+          comparison-type: push
+          benchmark-json-path: benchmark.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          python-version: "3.13"
+
+  docs:
+    name: Build and deploy docs
+    needs: lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get branch name
+        id: branch
+        uses: ./.github/actions/get-branch-name
+
+      - name: Build and deploy docs
+        uses: ./.github/actions/build-docs
+        with:
+          python-version: "3.13"
+          branch-name: ${{ steps.branch.outputs.branch-name }}

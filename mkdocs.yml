@@ -34,6 +34,9 @@ theme:
 plugins:
   - autorefs
   - awesome-pages
+  - include-markdown:
+      opening_tag: "{!"
+      closing_tag: "!}"
   - mike
   - mkdocs-jupyter:
       include_source: True
@@ -43,18 +46,19 @@ plugins:
       handlers:
         python:
           paths: [.]
-          selection:
-            new_path_syntax: true
           rendering:
             show_root_heading: true
             show_source: true
             heading_level: 3
-#      custom_templates: templates
   - search
   - table-reader
 
+watch:
+  - cube_wrangler
+
 nav:
   - Home: index.md
+  - Development: development.md
   - API: api.md
 
 extra:

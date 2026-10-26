@@ -1,0 +1,36 @@
+name: 'Get Branch Name'
+description: 'Get normalized branch name from GitHub event context'
+outputs:
+  branch-name:
+    description: 'Normalized branch name (without refs/heads/ prefix)'
+    value: ${{ steps.branch-name.outputs.value }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Determine branch name
+      id: branch-name
+      env:
+        EVENT_REF: ${{ github.event.ref }}
+        PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      run: |
+        if [ "$GITHUB_EVENT_NAME" = "delete" ]; then
+          BRANCH_NAME="$EVENT_REF"
+          BRANCH_NAME="${BRANCH_NAME#refs/heads/}"
+          BRANCH_NAME="${BRANCH_NAME#refs/tags/}"
+        elif [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+          BRANCH_NAME="$PR_HEAD_REF"
+        elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
+          BRANCH_NAME="$GITHUB_REF_NAME"
+        else
+          BRANCH_NAME="$GITHUB_REF_NAME"
+        fi
+
+        if [ -z "$BRANCH_NAME" ]; then
+          echo "ERROR: Could not determine branch name from event" >&2
+          exit 1
+        fi
+
+        echo "Branch name determined: $BRANCH_NAME"
+        printf 'value=%s\n' "$BRANCH_NAME" >> "$GITHUB_OUTPUT"
+      shell: bash
