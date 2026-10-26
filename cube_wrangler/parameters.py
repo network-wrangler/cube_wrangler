@@ -36,14 +36,41 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
 from pydantic import Field
 from pydantic.dataclasses import dataclass
 
 from .logger import WranglerLogger
+from .models.tables import CubeLinksTable, CubeNodesTable
 
 # ---------------------------------------------------------------------------
 # Nested config dataclasses
 # ---------------------------------------------------------------------------
+
+
+def _columns_by_kind(
+    *, is_bool: bool = False, is_int: bool = False, is_str: bool = False
+) -> list[str]:
+    """List Cube link/node column names whose declared dtype is of the requested kind."""
+    columns: dict = {}
+    for model in (CubeNodesTable, CubeLinksTable):
+        columns.update(model.to_schema().columns)
+    result = []
+    for name, column in columns.items():
+        dtype = column.dtype.type
+        if (
+            (is_bool and pd.api.types.is_bool_dtype(dtype))
+            or (is_int and pd.api.types.is_integer_dtype(dtype))
+            or (
+                is_str
+                and (
+                    pd.api.types.is_string_dtype(dtype)
+                    or getattr(dtype, "kind", None) in ("O", "U")
+                )
+            )
+        ):
+            result.append(name)
+    return result
 
 
 @dataclass
@@ -145,6 +172,14 @@ class Parameters:
     time_periods: TimePeriodsConfig = Field(default_factory=TimePeriodsConfig)
     categories: CategoriesConfig = Field(default_factory=CategoriesConfig)
     zones: int = 3061
+    output_epsg: int | None = None
+    wrangler_epsg: int = 4326
+    no_model_link_id_in_cube: bool = False
+    no_lanes_in_cube: bool = False
+    no_drive_access_in_cube: bool = False
+    no_walk_access_in_cube: bool = False
+    no_bike_access_in_cube: bool = False
+    no_name_in_cube: bool = False
     output_variables: list[str] = Field(
         default_factory=lambda: [
             "model_link_id",
@@ -286,3 +321,18 @@ class Parameters:
     def time_period_to_time(self) -> dict[str, tuple[str, str]]:
         """Dict form of ``time_periods`` (period code → time-span tuple)."""
         return self.time_periods.as_dict()
+
+    @property
+    def bool_col(self) -> list[str]:
+        """Link columns declared boolean in ``CubeLinksTable``."""
+        return _columns_by_kind(is_bool=True)
+
+    @property
+    def int_col(self) -> list[str]:
+        """Link and node columns declared integer in the Cube data models."""
+        return _columns_by_kind(is_int=True)
+
+    @property
+    def string_col(self) -> list[str]:
+        """Link columns declared string/object in ``CubeLinksTable``."""
+        return _columns_by_kind(is_str=True)

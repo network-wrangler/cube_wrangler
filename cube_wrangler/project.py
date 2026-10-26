@@ -553,37 +553,25 @@ class Project:
             # so that we can still create a project card for a network
             # that is not using the Network Wrangler standard schema.
             # users can set such parameters in their implementation.
-            if (
-                "no_model_link_id_in_cube" in self.parameters.__dict__
-                and self.parameters.no_model_link_id_in_cube
-            ):
+            if self.parameters.no_model_link_id_in_cube:
                 cube_add_df["model_link_id"] = range(
                     self.base_roadway_network.links_df.model_link_id.max() + 1,
                     self.base_roadway_network.links_df.model_link_id.max() + 1 + len(cube_add_df),
                 )
 
-            if "no_lanes_in_cube" in self.parameters.__dict__ and self.parameters.no_lanes_in_cube:
+            if self.parameters.no_lanes_in_cube:
                 cube_add_df["lanes"] = 0
 
-            if (
-                "no_drive_access_in_cube" in self.parameters.__dict__
-                and self.parameters.no_drive_access_in_cube
-            ):
+            if self.parameters.no_drive_access_in_cube:
                 cube_add_df["drive_access"] = 1
 
-            if (
-                "no_walk_access_in_cube" in self.parameters.__dict__
-                and self.parameters.no_walk_access_in_cube
-            ):
+            if self.parameters.no_walk_access_in_cube:
                 cube_add_df["walk_access"] = 1
 
-            if (
-                "no_bike_access_in_cube" in self.parameters.__dict__
-                and self.parameters.no_bike_access_in_cube
-            ):
+            if self.parameters.no_bike_access_in_cube:
                 cube_add_df["bike_access"] = 1
 
-            if "no_name_in_cube" in self.parameters.__dict__ and self.parameters.no_name_in_cube:
+            if self.parameters.no_name_in_cube:
                 cube_add_df["name"] = "unknown"
             # end of section to ensure required columns
 
@@ -650,6 +638,9 @@ class Project:
 
             WranglerLogger.info("Reprojecting node coordinates from model CRS to standard CRS")
             if "X" in node_add_df.columns:
+                if self.parameters.output_epsg is None:
+                    msg = "Parameters.output_epsg must be set to reproject node coordinates."
+                    raise ValueError(msg)
                 node_add_df = gpd.GeoDataFrame(
                     node_add_df,
                     geometry=gpd.points_from_xy(node_add_df["X"], node_add_df["Y"]),

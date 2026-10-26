@@ -105,11 +105,8 @@ def test_project_roadway_changes_stored(log_file_10):
 
 
 @pytest.mark.roadway
-def test_add_highway_changes_processes_boolean_link_change(
-    stpaul_net, cube_parameters, monkeypatch
-):
+def test_add_highway_changes_processes_boolean_link_change(stpaul_net, cube_parameters):
     """Boolean link changes use schema types instead of Parameters.bool_col."""
-    monkeypatch.setattr(cube_parameters, "string_col", [], raising=False)
     base_links = stpaul_net.links_df
     link = base_links.loc[base_links["drive_access"].notna()].iloc[0]
     original_access = bool(link["drive_access"])
