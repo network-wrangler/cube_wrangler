@@ -20,7 +20,7 @@ def test_coerce_links_int_columns():
     result = coerce_df_to_model(df, CubeLinksTable)
     assert result["A"].dtype == int
     assert result["B"].dtype == int
-    assert result["lanes_AM"].dtype == int
+    assert pd.api.types.is_integer_dtype(result["lanes_AM"])
 
 
 @pytest.mark.roadway
@@ -28,8 +28,9 @@ def test_coerce_links_bool_columns():
     """Boolean columns are coerced from int/string."""
     df = pd.DataFrame({"drive_access": [1, 0], "walk_access": ["True", "False"]})
     result = coerce_df_to_model(df, CubeLinksTable)
-    assert result["drive_access"].dtype == bool
-    assert result["walk_access"].dtype == bool
+    assert pd.api.types.is_bool_dtype(result["drive_access"])
+    assert pd.api.types.is_bool_dtype(result["walk_access"])
+    assert result["walk_access"].tolist() == [True, False]
 
 
 @pytest.mark.roadway

@@ -27,6 +27,24 @@ def _convert_string_dtype_to_object(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _parse_string_booleans(df: pd.DataFrame, model: type[DataFrameModel]) -> pd.DataFrame:
+    """Convert "True"/"False" strings to booleans in columns the model declares as bool.
+
+    Pandas cannot cast strings to nullable booleans, and ``astype(bool)`` would
+    treat every non-empty string (including "False") as True.
+    """
+    mapping = {"true": True, "false": False}
+    for col, column in model.to_schema().columns.items():
+        if col not in df.columns or not pd.api.types.is_bool_dtype(column.dtype.type):
+            continue
+        if df[col].dtype == object:
+            parsed = df[col].map(
+                lambda v: mapping.get(v.strip().lower(), v) if isinstance(v, str) else v
+            )
+            df[col] = parsed
+    return df
+
+
 def coerce_df_to_model(
     df: pd.DataFrame,
     model: type[DataFrameModel],
@@ -52,7 +70,7 @@ def coerce_df_to_model(
         ValueError: When coercion fails and cannot be recovered.
     """
     attrs = copy.deepcopy(df.attrs)
-    df = _convert_string_dtype_to_object(df)
+    df = _parse_string_booleans(_convert_string_dtype_to_object(df), model)
 
     try:
         result = model.validate(df, lazy=True)
